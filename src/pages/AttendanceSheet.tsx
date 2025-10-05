@@ -3,9 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Check, X, Users, UserCheck, UserX } from "lucide-react";
+import { ArrowLeft, Check, X, Users, UserCheck, UserX, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { TemplateAttendanceView } from "@/components/attendance/TemplateAttendanceView";
 
 type Student = {
   id: string;
@@ -29,6 +30,9 @@ const AttendanceSheet = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAbsentOnly, setShowAbsentOnly] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<"list" | "template">("list");
 
   const isValidUuid = (v: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -60,6 +64,18 @@ const AttendanceSheet = () => {
 
       if (sectionError) throw sectionError;
       setSection(sectionData);
+
+      // Fetch templates for this section
+      const { data: templatesData } = await supabase
+        .from("attendance_sheet_templates")
+        .select("*, template_cells(*)")
+        .eq("section_id", sectionId)
+        .order("created_at", { ascending: false });
+
+      setTemplates(templatesData || []);
+      if (templatesData && templatesData.length > 0) {
+        setSelectedTemplate(templatesData[0]);
+      }
 
       const { data: studentsData, error: studentsError } = await supabase
         .from("students")
@@ -247,67 +263,92 @@ const AttendanceSheet = () => {
           >
             {showAbsentOnly ? "Show All Students" : "Show Absent Only"}
           </Button>
+          {templates.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => setViewMode(viewMode === "list" ? "template" : "list")}
+              size="lg"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              {viewMode === "list" ? "Template View" : "List View"}
+            </Button>
+          )}
         </div>
 
-        {/* Attendance Table */}
+        {/* Attendance Table or Template View */}
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="text-left p-4 font-semibold">S.No</th>
-                    <th className="text-left p-4 font-semibold">Roll Number</th>
-                    <th className="text-left p-4 font-semibold">Student Name</th>
-                    <th className="text-center p-4 font-semibold">Attendance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.length === 0 ? (
+            {viewMode === "list" ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
                     <tr>
-                      <td colSpan={4} className="text-center p-8 text-muted-foreground">
-                        {showAbsentOnly ? "No absent students" : "No students found"}
-                      </td>
+                      <th className="text-left p-4 font-semibold">S.No</th>
+                      <th className="text-left p-4 font-semibold">Roll Number</th>
+                      <th className="text-left p-4 font-semibold">Student Name</th>
+                      <th className="text-center p-4 font-semibold">Attendance</th>
                     </tr>
-                  ) : (
-                    filteredStudents.map((student, index) => {
-                      const status = attendance.get(student.id)?.status;
-                      const isPresent = status === "present";
+                  </thead>
+                  <tbody>
+                    {filteredStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center p-8 text-muted-foreground">
+                          {showAbsentOnly ? "No absent students" : "No students found"}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStudents.map((student, index) => {
+                        const status = attendance.get(student.id)?.status;
+                        const isPresent = status === "present";
 
-                      return (
-                        <tr
-                          key={student.id}
-                          className="border-t hover:bg-muted/20 transition-colors"
-                        >
-                          <td className="p-4">{index + 1}</td>
-                          <td className="p-4 font-medium">{student.roll_number}</td>
-                          <td className="p-4">{student.name}</td>
-                          <td className="p-4">
-                            <div className="flex justify-center">
-                              <button
-                                onClick={() => toggleAttendance(student.id)}
-                                className={cn(
-                                  "h-12 w-12 rounded-lg flex items-center justify-center transition-all hover:scale-110",
-                                  isPresent
-                                    ? "bg-success/20 hover:bg-success/30"
-                                    : "bg-destructive/20 hover:bg-destructive/30"
-                                )}
-                              >
-                                {isPresent ? (
-                                  <Check className="h-6 w-6 text-success" />
-                                ) : (
-                                  <X className="h-6 w-6 text-destructive" />
-                                )}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        return (
+                          <tr
+                            key={student.id}
+                            className="border-t hover:bg-muted/20 transition-colors"
+                          >
+                            <td className="p-4">{index + 1}</td>
+                            <td className="p-4 font-medium">{student.roll_number}</td>
+                            <td className="p-4">{student.name}</td>
+                            <td className="p-4">
+                              <div className="flex justify-center">
+                                <button
+                                  onClick={() => toggleAttendance(student.id)}
+                                  className={cn(
+                                    "h-12 w-12 rounded-lg flex items-center justify-center transition-all hover:scale-110",
+                                    isPresent
+                                      ? "bg-success/20 hover:bg-success/30"
+                                      : "bg-destructive/20 hover:bg-destructive/30"
+                                  )}
+                                >
+                                  {isPresent ? (
+                                    <Check className="h-6 w-6 text-success" />
+                                  ) : (
+                                    <X className="h-6 w-6 text-destructive" />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : selectedTemplate ? (
+              <div className="overflow-x-auto p-4">
+                <TemplateAttendanceView
+                  template={selectedTemplate}
+                  students={students}
+                  attendance={attendance}
+                  onToggle={toggleAttendance}
+                />
+              </div>
+            ) : (
+              <div className="p-8 text-center text-muted-foreground">
+                No template available for this section
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

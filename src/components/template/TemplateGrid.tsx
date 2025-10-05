@@ -335,13 +335,16 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                   <Input
                     type="number"
                     min="1"
+                    max={maxRow}
                     value={editingCell.rowspan}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = e.target.value;
                       setEditingCell({
                         ...editingCell,
-                        rowspan: parseInt(e.target.value) || 1,
-                      })
-                    }
+                        rowspan: val === '' ? 1 : Math.max(1, Math.min(parseInt(val) || 1, maxRow)),
+                      });
+                    }}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
                 <div>
@@ -349,13 +352,16 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                   <Input
                     type="number"
                     min="1"
+                    max={maxCol}
                     value={editingCell.colspan}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = e.target.value;
                       setEditingCell({
                         ...editingCell,
-                        colspan: parseInt(e.target.value) || 1,
-                      })
-                    }
+                        colspan: val === '' ? 1 : Math.max(1, Math.min(parseInt(val) || 1, maxCol)),
+                      });
+                    }}
+                    onFocus={(e) => e.target.select()}
                   />
                 </div>
               </div>
