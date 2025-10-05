@@ -16,7 +16,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<string>("student");
+  const [role, setRole] = useState<string>("professor");
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,7 +161,6 @@ const Auth = () => {
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="student">Student</SelectItem>
                       <SelectItem value="professor">Professor</SelectItem>
                       <SelectItem value="hod">Head of Department</SelectItem>
                       <SelectItem value="assistant_hod">Assistant HOD</SelectItem>
