@@ -6,6 +6,7 @@ import { Trash2, Edit, Check, X, Plus, Minus, SplitSquareHorizontal, SplitSquare
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Cell {
   row_index: number;
@@ -31,6 +32,15 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
   const [editDialog, setEditDialog] = useState(false);
   const [editingCell, setEditingCell] = useState<Cell | null>(null);
+  const [checkboxStates, setCheckboxStates] = useState<Record<string, boolean>>({});
+
+  const toggleCheckbox = (cellKey: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCheckboxStates(prev => ({
+      ...prev,
+      [cellKey]: !prev[cellKey]
+    }));
+  };
 
   const getCellAt = (row: number, col: number): Cell | null => {
     return cells.find(
@@ -190,20 +200,36 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
               }`}
               onClick={() => handleCellClick(row, col)}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm">
-                  {cell.cell_type === "checkbox" ? (
-                    <div className="flex items-center justify-center">
-                      {cell.label || "☐"}
-                    </div>
-                  ) : (
-                    cell.label || `${cell.cell_type}`
-                  )}
-                </span>
+              <div className="flex items-center justify-between gap-2 h-full">
+                {cell.cell_type === "checkbox" ? (
+                  <button
+                    onClick={(e) => toggleCheckbox(`${row}-${col}`, e)}
+                    className={cn(
+                      "w-full h-full min-h-[60px] rounded-md flex items-center justify-center transition-all hover:scale-105 active:scale-95",
+                      checkboxStates[`${row}-${col}`]
+                        ? "bg-destructive/20 hover:bg-destructive/30 border-2 border-destructive"
+                        : "bg-success/20 hover:bg-success/30 border-2 border-success"
+                    )}
+                  >
+                    {checkboxStates[`${row}-${col}`] ? (
+                      <X className="h-8 w-8 text-destructive stroke-[3]" />
+                    ) : (
+                      <Check className="h-8 w-8 text-success stroke-[3]" />
+                    )}
+                  </button>
+                ) : cell.cell_type === "submit" ? (
+                  <Button className="w-full h-full min-h-[48px]" size="lg">
+                    {cell.label || "Submit"}
+                  </Button>
+                ) : (
+                  <span className="text-sm">
+                    {cell.label || `${cell.cell_type}`}
+                  </span>
+                )}
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 absolute top-1 right-1"
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteCell(row, col);
@@ -314,6 +340,7 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                     <SelectItem value="header">Header</SelectItem>
                     <SelectItem value="static">Static Text</SelectItem>
                     <SelectItem value="checkbox">Checkbox</SelectItem>
+                    <SelectItem value="submit">Submit Button</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

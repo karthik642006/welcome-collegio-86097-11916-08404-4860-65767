@@ -116,6 +116,26 @@ export function TemplateAttendanceView({
       }
     }
 
+    if (cell.cell_type === "submit") {
+      return (
+        <td
+          key={`${row}-${col}`}
+          rowSpan={cell.rowspan}
+          colSpan={cell.colspan}
+          className={cellClasses}
+        >
+          <div className="flex items-center justify-center h-full p-2">
+            <button
+              onClick={() => {/* Handle submit */}}
+              className="w-full h-full min-h-[48px] bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-semibold transition-all hover:scale-105 active:scale-95"
+            >
+              {cell.label || "Submit"}
+            </button>
+          </div>
+        </td>
+      );
+    }
+
     return (
       <td
         key={`${row}-${col}`}
