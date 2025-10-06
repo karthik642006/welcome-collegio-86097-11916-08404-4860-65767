@@ -75,11 +75,15 @@ export function TemplateAttendanceView({
       "border border-border p-3 min-h-[60px]",
       cell.cell_type === "header" && "bg-muted font-semibold text-center",
       cell.cell_type === "static" && "bg-card",
-      cell.cell_type === "checkbox" && "bg-background",
-      cell.config?.backgroundColor && `bg-[${cell.config.backgroundColor}]`
+      cell.cell_type === "checkbox" && "bg-background"
     );
     
-    const cellStyle = cell.config?.backgroundColor ? { backgroundColor: cell.config.backgroundColor } : {};
+    const cellStyle = cell.config?.backgroundColor 
+      ? { 
+          backgroundColor: cell.config.backgroundColor,
+          opacity: cell.config?.backgroundOpacity || 1
+        } 
+      : {};
 
     if (cell.cell_type === "checkbox") {
       // For checkbox cells, show toggleable attendance

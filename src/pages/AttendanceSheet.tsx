@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Check, X, Users, UserCheck, UserX, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Check, X, Users, UserCheck, UserX, FileSpreadsheet, Download } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { TemplateAttendanceView } from "@/components/attendance/TemplateAttendanceView";
@@ -188,6 +188,30 @@ const AttendanceSheet = () => {
 
   const stats = getStats();
 
+  const handleDownload = () => {
+    const today = new Date().toLocaleDateString();
+    const csvContent = [
+      ["S.No", "Roll Number", "Student Name", "Attendance Status"],
+      ...students.map((student, index) => [
+        index + 1,
+        student.roll_number,
+        student.name,
+        attendance.get(student.id)?.status === "present" ? "Present" : "Absent"
+      ])
+    ]
+      .map(row => row.join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `attendance_${section?.name}_${today.replace(/\//g, "-")}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("Attendance sheet downloaded!");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -255,6 +279,14 @@ const AttendanceSheet = () => {
         <div className="flex gap-3 mb-6 flex-wrap">
           <Button onClick={handleSave} disabled={saving} size="lg">
             {saving ? "Saving..." : "Save Attendance"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDownload}
+            size="lg"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download CSV
           </Button>
           <Button
             variant="outline"

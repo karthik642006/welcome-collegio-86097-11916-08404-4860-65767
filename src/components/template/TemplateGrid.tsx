@@ -198,7 +198,10 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                 cell.cell_type === "checkbox" ? "bg-primary/10 text-center" :
                 cell.cell_type === "static" ? "bg-card" : ""
               }`}
-              style={cell.config?.backgroundColor ? { backgroundColor: cell.config.backgroundColor } : {}}
+              style={cell.config?.backgroundColor ? { 
+                backgroundColor: cell.config.backgroundColor,
+                opacity: cell.config?.backgroundOpacity || 1
+              } : {}}
               onClick={() => handleCellClick(row, col)}
             >
               <div className="flex items-center justify-between gap-2 h-full">
@@ -364,7 +367,7 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
 
               <div>
                 <Label>Cell Background Color</Label>
-                <div className="flex flex-wrap gap-2 p-3 border rounded-md">
+                <div className="flex flex-wrap gap-2 p-3 border rounded-md mb-3">
                   {[
                     { name: "Default", value: "" },
                     { name: "Red", value: "#fee" },
@@ -382,7 +385,11 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                       onClick={() =>
                         setEditingCell({
                           ...editingCell,
-                          config: { ...editingCell.config, backgroundColor: color.value },
+                          config: { 
+                            ...editingCell.config, 
+                            backgroundColor: color.value,
+                            backgroundOpacity: editingCell.config?.backgroundOpacity || 1
+                          },
                         })
                       }
                       className={cn(
@@ -397,6 +404,33 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                     </button>
                   ))}
                 </div>
+                {editingCell.config?.backgroundColor && (
+                  <div>
+                    <Label className="mb-2 flex items-center justify-between">
+                      <span>Opacity</span>
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round((editingCell.config?.backgroundOpacity || 1) * 100)}%
+                      </span>
+                    </Label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={editingCell.config?.backgroundOpacity || 1}
+                      onChange={(e) =>
+                        setEditingCell({
+                          ...editingCell,
+                          config: {
+                            ...editingCell.config,
+                            backgroundOpacity: parseFloat(e.target.value),
+                          },
+                        })
+                      }
+                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer slider"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
