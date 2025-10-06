@@ -136,6 +136,22 @@ export function TemplateAttendanceView({
       );
     }
 
+    if (cell.cell_type === "textarea") {
+      return (
+        <td
+          key={`${row}-${col}`}
+          rowSpan={cell.rowspan}
+          colSpan={cell.colspan}
+          className={cellClasses}
+        >
+          <textarea
+            placeholder={cell.label || "Enter text..."}
+            className="w-full h-full min-h-[80px] p-2 bg-background border border-border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+        </td>
+      );
+    }
+
     return (
       <td
         key={`${row}-${col}`}

@@ -221,6 +221,10 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                   <Button className="w-full h-full min-h-[48px]" size="lg">
                     {cell.label || "Submit"}
                   </Button>
+                ) : cell.cell_type === "textarea" ? (
+                  <div className="w-full h-full min-h-[80px] border-2 border-dashed border-muted-foreground/30 rounded-md p-2 bg-muted/20">
+                    <span className="text-xs text-muted-foreground">Text area</span>
+                  </div>
                 ) : (
                   <span className="text-sm">
                     {cell.label || `${cell.cell_type}`}
@@ -337,6 +341,7 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="text">Text Input</SelectItem>
+                    <SelectItem value="textarea">Text Area</SelectItem>
                     <SelectItem value="header">Header</SelectItem>
                     <SelectItem value="static">Static Text</SelectItem>
                     <SelectItem value="checkbox">Checkbox</SelectItem>

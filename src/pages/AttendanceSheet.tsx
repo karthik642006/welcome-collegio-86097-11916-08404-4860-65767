@@ -314,16 +314,16 @@ const AttendanceSheet = () => {
                                 <button
                                   onClick={() => toggleAttendance(student.id)}
                                   className={cn(
-                                    "h-12 w-12 rounded-lg flex items-center justify-center transition-all hover:scale-110",
+                                    "min-h-[60px] w-24 rounded-md flex items-center justify-center transition-all hover:scale-105 active:scale-95",
                                     isPresent
-                                      ? "bg-success/20 hover:bg-success/30"
-                                      : "bg-destructive/20 hover:bg-destructive/30"
+                                      ? "bg-success/20 hover:bg-success/30 border-2 border-success"
+                                      : "bg-destructive/20 hover:bg-destructive/30 border-2 border-destructive"
                                   )}
                                 >
                                   {isPresent ? (
-                                    <Check className="h-6 w-6 text-success" />
+                                    <Check className="h-8 w-8 text-success stroke-[3]" />
                                   ) : (
-                                    <X className="h-6 w-6 text-destructive" />
+                                    <X className="h-8 w-8 text-destructive stroke-[3]" />
                                   )}
                                 </button>
                               </div>
