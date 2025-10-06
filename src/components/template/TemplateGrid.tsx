@@ -198,6 +198,7 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                 cell.cell_type === "checkbox" ? "bg-primary/10 text-center" :
                 cell.cell_type === "static" ? "bg-card" : ""
               }`}
+              style={cell.config?.backgroundColor ? { backgroundColor: cell.config.backgroundColor } : {}}
               onClick={() => handleCellClick(row, col)}
             >
               <div className="flex items-center justify-between gap-2 h-full">
@@ -359,6 +360,43 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                   }
                   placeholder="Enter cell content"
                 />
+              </div>
+
+              <div>
+                <Label>Cell Background Color</Label>
+                <div className="flex flex-wrap gap-2 p-3 border rounded-md">
+                  {[
+                    { name: "Default", value: "" },
+                    { name: "Red", value: "#fee" },
+                    { name: "Green", value: "#efe" },
+                    { name: "Blue", value: "#eef" },
+                    { name: "Yellow", value: "#ffe" },
+                    { name: "Purple", value: "#fef" },
+                    { name: "Orange", value: "#fed" },
+                    { name: "Pink", value: "#fdd" },
+                    { name: "Gray", value: "#eee" },
+                  ].map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() =>
+                        setEditingCell({
+                          ...editingCell,
+                          config: { ...editingCell.config, backgroundColor: color.value },
+                        })
+                      }
+                      className={cn(
+                        "w-16 h-10 rounded-md border-2 transition-all hover:scale-105 flex items-center justify-center text-xs font-medium",
+                        editingCell.config?.backgroundColor === color.value
+                          ? "border-primary ring-2 ring-primary/20"
+                          : "border-border"
+                      )}
+                      style={{ backgroundColor: color.value || "#fff" }}
+                    >
+                      {color.name}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

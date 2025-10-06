@@ -75,8 +75,11 @@ export function TemplateAttendanceView({
       "border border-border p-3 min-h-[60px]",
       cell.cell_type === "header" && "bg-muted font-semibold text-center",
       cell.cell_type === "static" && "bg-card",
-      cell.cell_type === "checkbox" && "bg-background"
+      cell.cell_type === "checkbox" && "bg-background",
+      cell.config?.backgroundColor && `bg-[${cell.config.backgroundColor}]`
     );
+    
+    const cellStyle = cell.config?.backgroundColor ? { backgroundColor: cell.config.backgroundColor } : {};
 
     if (cell.cell_type === "checkbox") {
       // For checkbox cells, show toggleable attendance
@@ -93,12 +96,13 @@ export function TemplateAttendanceView({
             rowSpan={cell.rowspan}
             colSpan={cell.colspan}
             className={cellClasses}
+            style={cellStyle}
           >
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full p-2">
               <button
                 onClick={() => onToggle(student.id)}
                 className={cn(
-                  "w-full h-full min-h-[48px] rounded-md flex items-center justify-center transition-all hover:scale-105 active:scale-95",
+                  "w-full h-full min-h-[60px] rounded-md flex items-center justify-center transition-all hover:scale-105 active:scale-95",
                   isPresent
                     ? "bg-success/20 hover:bg-success/30 border-2 border-success"
                     : "bg-destructive/20 hover:bg-destructive/30 border-2 border-destructive"
@@ -123,6 +127,7 @@ export function TemplateAttendanceView({
           rowSpan={cell.rowspan}
           colSpan={cell.colspan}
           className={cellClasses}
+          style={cellStyle}
         >
           <div className="flex items-center justify-center h-full p-2">
             <button
@@ -143,6 +148,7 @@ export function TemplateAttendanceView({
           rowSpan={cell.rowspan}
           colSpan={cell.colspan}
           className={cellClasses}
+          style={cellStyle}
         >
           <textarea
             placeholder={cell.label || "Enter text..."}
@@ -158,6 +164,7 @@ export function TemplateAttendanceView({
         rowSpan={cell.rowspan}
         colSpan={cell.colspan}
         className={cellClasses}
+        style={cellStyle}
       >
         <div className="text-sm">
           {cell.label || (cell.cell_type === "text" ? "" : cell.cell_type)}
