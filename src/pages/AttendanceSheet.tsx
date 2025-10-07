@@ -342,20 +342,22 @@ const AttendanceSheet = () => {
                             <td className="p-4 font-medium">{student.roll_number}</td>
                             <td className="p-4">{student.name}</td>
                             <td className="p-4">
-                              <div className="flex justify-center">
+                              <div className="flex items-center justify-center">
                                 <button
+                                  type="button"
                                   onClick={() => toggleAttendance(student.id)}
                                   className={cn(
-                                    "min-h-[60px] w-24 rounded-md flex items-center justify-center transition-all hover:scale-105 active:scale-95",
+                                    "min-h-[60px] min-w-[80px] rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm",
                                     isPresent
-                                      ? "bg-success/20 hover:bg-success/30 border-2 border-success"
-                                      : "bg-destructive/20 hover:bg-destructive/30 border-2 border-destructive"
+                                      ? "bg-green-50 hover:bg-green-100 border-2 border-green-500 dark:bg-green-950 dark:hover:bg-green-900"
+                                      : "bg-red-50 hover:bg-red-100 border-2 border-red-500 dark:bg-red-950 dark:hover:bg-red-900"
                                   )}
+                                  aria-label={isPresent ? "Mark as absent" : "Mark as present"}
                                 >
                                   {isPresent ? (
-                                    <Check className="h-8 w-8 text-success stroke-[3]" />
+                                    <Check className="h-8 w-8 text-green-600 dark:text-green-400" strokeWidth={3} />
                                   ) : (
-                                    <X className="h-8 w-8 text-destructive stroke-[3]" />
+                                    <X className="h-8 w-8 text-red-600 dark:text-red-400" strokeWidth={3} />
                                   )}
                                 </button>
                               </div>
