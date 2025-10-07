@@ -104,18 +104,20 @@ export function TemplateAttendanceView({
           >
             <div className="flex items-center justify-center h-full p-2">
               <button
+                type="button"
                 onClick={() => onToggle(student.id)}
                 className={cn(
-                  "w-full h-full min-h-[60px] rounded-md flex items-center justify-center transition-all hover:scale-105 active:scale-95",
+                  "w-full h-full min-h-[60px] rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm",
                   isPresent
-                    ? "bg-success/20 hover:bg-success/30 border-2 border-success"
-                    : "bg-destructive/20 hover:bg-destructive/30 border-2 border-destructive"
+                    ? "bg-green-50 hover:bg-green-100 border-2 border-green-500 dark:bg-green-950 dark:hover:bg-green-900"
+                    : "bg-red-50 hover:bg-red-100 border-2 border-red-500 dark:bg-red-950 dark:hover:bg-red-900"
                 )}
+                aria-label={isPresent ? "Mark as absent" : "Mark as present"}
               >
                 {isPresent ? (
-                  <Check className="h-8 w-8 text-success stroke-[3]" />
+                  <Check className="h-8 w-8 text-green-600 dark:text-green-400" strokeWidth={3} />
                 ) : (
-                  <X className="h-8 w-8 text-destructive stroke-[3]" />
+                  <X className="h-8 w-8 text-red-600 dark:text-red-400" strokeWidth={3} />
                 )}
               </button>
             </div>
