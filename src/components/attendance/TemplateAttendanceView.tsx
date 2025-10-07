@@ -46,9 +46,19 @@ export function TemplateAttendanceView({
 }: TemplateAttendanceViewProps) {
   const cells = template.template_cells || [];
   
-  // Calculate grid dimensions
-  const maxRow = Math.max(...cells.map(c => c.row_index + c.rowspan), 1);
+  // Identify template structure
+  const headerCells = cells.filter(c => c.cell_type === "header");
+  const checkboxCells = cells.filter(c => c.cell_type === "checkbox");
+  const textCells = cells.filter(c => c.cell_type === "text" || c.cell_type === "static");
+  
+  // Determine data row start (after headers)
+  const headerRows = headerCells.length > 0 
+    ? Math.max(...headerCells.map(c => c.row_index + c.rowspan))
+    : 1;
+  
+  // Calculate grid dimensions - add rows for each student
   const maxCol = Math.max(...cells.map(c => c.col_index + c.colspan), 1);
+  const totalRows = headerRows + students.length;
 
   const getCellAt = (row: number, col: number): Cell | null => {
     return cells.find(
@@ -70,7 +80,7 @@ export function TemplateAttendanceView({
     );
   };
 
-  const renderCell = (cell: Cell, row: number, col: number) => {
+  const renderCell = (cell: Cell, row: number, col: number, studentIndex?: number) => {
     const cellClasses = cn(
       "border border-border p-3 min-h-[60px]",
       cell.cell_type === "header" && "bg-muted font-semibold text-center",
@@ -85,9 +95,8 @@ export function TemplateAttendanceView({
         } 
       : {};
 
-    if (cell.cell_type === "checkbox") {
-      // For checkbox cells, show toggleable attendance
-      const studentIndex = row - 1; // Assuming first row is header
+    // Render checkbox cells with student data
+    if (cell.cell_type === "checkbox" && studentIndex !== undefined) {
       const student = students[studentIndex];
       
       if (student) {
@@ -120,6 +129,28 @@ export function TemplateAttendanceView({
                   <X className="h-8 w-8 text-red-600 dark:text-red-400" strokeWidth={3} />
                 )}
               </button>
+            </div>
+          </td>
+        );
+      }
+    }
+    
+    // Render text cells with student data
+    if (cell.cell_type === "text" && studentIndex !== undefined) {
+      const student = students[studentIndex];
+      if (student) {
+        return (
+          <td
+            key={`${row}-${col}`}
+            rowSpan={cell.rowspan}
+            colSpan={cell.colspan}
+            className={cellClasses}
+            style={cellStyle}
+          >
+            <div className="text-sm">
+              {cell.label === "Roll Number" ? student.roll_number : 
+               cell.label === "Student Name" ? student.name : 
+               cell.label || ""}
             </div>
           </td>
         );
@@ -182,7 +213,8 @@ export function TemplateAttendanceView({
   const renderGrid = () => {
     const grid: JSX.Element[][] = [];
     
-    for (let row = 0; row < maxRow; row++) {
+    // Render header rows
+    for (let row = 0; row < headerRows; row++) {
       const rowCells: JSX.Element[] = [];
       
       for (let col = 0; col < maxCol; col++) {
@@ -194,16 +226,52 @@ export function TemplateAttendanceView({
           rowCells.push(
             <td
               key={`${row}-${col}`}
-              className="border border-dashed border-muted-foreground/20 p-3 min-h-[60px]"
-            >
-              <div className="text-muted-foreground/50 text-xs text-center">-</div>
-            </td>
+              className="border border-border p-3 min-h-[60px] bg-muted"
+            />
           );
         }
       }
       
-      grid.push([<tr key={row}>{rowCells}</tr>]);
+      if (rowCells.length > 0) {
+        grid.push([<tr key={row}>{rowCells}</tr>]);
+      }
     }
+    
+    // Render data rows for each student
+    students.forEach((student, studentIndex) => {
+      const row = headerRows + studentIndex;
+      const rowCells: JSX.Element[] = [];
+      
+      for (let col = 0; col < maxCol; col++) {
+        // Find template cell at this column (use first data row as template)
+        const templateCell = cells.find(c => 
+          c.col_index === col && 
+          c.row_index === headerRows &&
+          (c.cell_type === "checkbox" || c.cell_type === "text" || c.cell_type === "textarea")
+        );
+        
+        if (templateCell) {
+          rowCells.push(renderCell(templateCell, row, col, studentIndex));
+        } else {
+          // Check if this column has any template guidance
+          const anyColumnCell = cells.find(c => c.col_index === col);
+          if (anyColumnCell) {
+            rowCells.push(
+              <td
+                key={`${row}-${col}`}
+                className="border border-border p-3 min-h-[60px]"
+              >
+                <div className="text-sm text-muted-foreground">-</div>
+              </td>
+            );
+          }
+        }
+      }
+      
+      if (rowCells.length > 0) {
+        grid.push([<tr key={row}>{rowCells}</tr>]);
+      }
+    });
     
     return grid.flat();
   };
