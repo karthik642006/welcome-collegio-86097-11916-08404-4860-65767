@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Building2, Calendar, Users, GraduationCap, FileText, Plus } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, Users, GraduationCap, FileText, SchoolIcon } from "lucide-react";
 import { toast } from "sonner";
 import { EntityActionsMenu } from "@/components/admin/EntityActionsMenu";
+import { EditCollegeDialog } from "@/components/admin/EditCollegeDialog";
 import { EditDepartmentDialog } from "@/components/admin/EditDepartmentDialog";
 import { EditYearDialog } from "@/components/admin/EditYearDialog";
 import { EditSectionDialog } from "@/components/admin/EditSectionDialog";
@@ -22,24 +23,37 @@ const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // College form
+  const [collegeName, setCollegeName] = useState("");
+  const [collegeCode, setCollegeCode] = useState("");
+
   // Department form
+  const [selectedCollege, setSelectedCollege] = useState("");
   const [deptName, setDeptName] = useState("");
   const [deptCode, setDeptCode] = useState("");
 
   // Year form
+  const [selectedCollegeForYear, setSelectedCollegeForYear] = useState("");
   const [selectedDept, setSelectedDept] = useState("");
   const [yearNumber, setYearNumber] = useState("");
 
   // Section form
+  const [selectedCollegeForSection, setSelectedCollegeForSection] = useState("");
+  const [selectedDeptForSection, setSelectedDeptForSection] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [sectionName, setSectionName] = useState("");
 
   // Student form
+  const [selectedCollegeForStudent, setSelectedCollegeForStudent] = useState("");
+  const [selectedDeptForStudent, setSelectedDeptForStudent] = useState("");
+  const [selectedYearForStudent, setSelectedYearForStudent] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
   const [studentName, setStudentName] = useState("");
   const [rollNumber, setRollNumber] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
+  const [studentGender, setStudentGender] = useState("");
 
+  const [colleges, setColleges] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [years, setYears] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
@@ -48,6 +62,10 @@ const Admin = () => {
   const [userRoles, setUserRoles] = useState<any[]>([]);
 
   // Dialog states
+  const [editCollegeDialog, setEditCollegeDialog] = useState<{ open: boolean; college: any }>({
+    open: false,
+    college: null,
+  });
   const [editDeptDialog, setEditDeptDialog] = useState<{ open: boolean; department: any }>({
     open: false,
     department: null,
@@ -105,15 +123,21 @@ const Admin = () => {
   };
 
   const fetchData = async () => {
+    const { data: clgs } = await supabase
+      .from("colleges")
+      .select("*")
+      .order("name");
+    setColleges(clgs || []);
+
     const { data: depts } = await supabase
       .from("departments")
-      .select("*")
+      .select("*, college:colleges(name)")
       .order("name");
     setDepartments(depts || []);
 
     const { data: yrs } = await supabase
       .from("years")
-      .select("*, department:departments(name)")
+      .select("*, department:departments(name, college_id, college:colleges(name))")
       .order("year_number");
     setYears(yrs || []);
 
@@ -123,7 +147,7 @@ const Admin = () => {
         *,
         year:years(
           year_number,
-          department:departments(name)
+          department:departments(name, college_id, college:colleges(name))
         )
       `)
       .order("name");
@@ -137,7 +161,7 @@ const Admin = () => {
           name,
           year:years(
             year_number,
-            department:departments(name)
+            department:departments(name, college_id, college:colleges(name))
           )
         )
       `)
@@ -162,16 +186,35 @@ const Admin = () => {
     setUserRoles(roles || []);
   };
 
+  const handleCreateCollege = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase
+        .from("colleges")
+        .insert({ name: collegeName, code: collegeCode });
+
+      if (error) throw error;
+
+      toast.success("College created successfully!");
+      setCollegeName("");
+      setCollegeCode("");
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create college");
+    }
+  };
+
   const handleCreateDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const { error } = await supabase
         .from("departments")
-        .insert({ name: deptName, code: deptCode });
+        .insert({ name: deptName, code: deptCode, college_id: selectedCollege });
 
       if (error) throw error;
 
       toast.success("Department created successfully!");
+      setSelectedCollege("");
       setDeptName("");
       setDeptCode("");
       fetchData();
@@ -193,6 +236,7 @@ const Admin = () => {
       if (error) throw error;
 
       toast.success("Year created successfully!");
+      setSelectedCollegeForYear("");
       setSelectedDept("");
       setYearNumber("");
       fetchData();
@@ -214,6 +258,8 @@ const Admin = () => {
       if (error) throw error;
 
       toast.success("Section created successfully!");
+      setSelectedCollegeForSection("");
+      setSelectedDeptForSection("");
       setSelectedYear("");
       setSectionName("");
       fetchData();
@@ -232,15 +278,20 @@ const Admin = () => {
           name: studentName,
           roll_number: rollNumber,
           email: studentEmail || null,
+          gender: studentGender,
         });
 
       if (error) throw error;
 
       toast.success("Student added successfully!");
+      setSelectedCollegeForStudent("");
+      setSelectedDeptForStudent("");
+      setSelectedYearForStudent("");
       setSelectedSection("");
       setStudentName("");
       setRollNumber("");
       setStudentEmail("");
+      setStudentGender("");
       fetchData();
     } catch (error: any) {
       toast.error(error.message || "Failed to add student");
@@ -249,7 +300,7 @@ const Admin = () => {
 
   const handleDelete = async () => {
     try {
-      const tableName = deleteDialog.type as "departments" | "years" | "sections" | "students";
+      const tableName = deleteDialog.type as "colleges" | "departments" | "years" | "sections" | "students" | "attendance_sheet_templates";
       const { error } = await supabase
         .from(tableName)
         .delete()
@@ -265,6 +316,13 @@ const Admin = () => {
       toast.error(error.message || "Failed to delete");
     }
   };
+
+  const filteredDeptsForYear = departments.filter(d => d.college_id === selectedCollegeForYear);
+  const filteredDeptsForSection = departments.filter(d => d.college_id === selectedCollegeForSection);
+  const filteredYearsForSection = years.filter(y => y.department_id === selectedDeptForSection);
+  const filteredDeptsForStudent = departments.filter(d => d.college_id === selectedCollegeForStudent);
+  const filteredYearsForStudent = years.filter(y => y.department_id === selectedDeptForStudent);
+  const filteredSectionsForStudent = sections.filter(s => s.year_id === selectedYearForStudent);
 
   if (loading) {
     return (
@@ -293,11 +351,15 @@ const Admin = () => {
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Admin Panel</h1>
-          <p className="text-muted-foreground">Manage departments, years, sections, and students</p>
+          <p className="text-muted-foreground">Manage colleges, departments, years, sections, and students</p>
         </div>
 
-        <Tabs defaultValue="departments" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+        <Tabs defaultValue="colleges" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="colleges">
+              <SchoolIcon className="h-4 w-4 mr-2" />
+              Colleges
+            </TabsTrigger>
             <TabsTrigger value="departments">
               <Building2 className="h-4 w-4 mr-2" />
               Departments
@@ -320,18 +382,94 @@ const Admin = () => {
             </TabsTrigger>
             <TabsTrigger value="roles">
               <Users className="h-4 w-4 mr-2" />
-              User Roles
+              Roles
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="colleges">
+            <Card>
+              <CardHeader>
+                <CardTitle>Create College</CardTitle>
+                <CardDescription>Add a new college to the system</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleCreateCollege} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="college-name">College Name</Label>
+                    <Input
+                      id="college-name"
+                      placeholder="ABC Engineering College"
+                      value={collegeName}
+                      onChange={(e) => setCollegeName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="college-code">College Code</Label>
+                    <Input
+                      id="college-code"
+                      placeholder="ABC"
+                      value={collegeCode}
+                      onChange={(e) => setCollegeCode(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit">Create College</Button>
+                </form>
+
+                {colleges.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="font-semibold mb-3">Existing Colleges</h3>
+                    <div className="space-y-2">
+                      {colleges.map((college) => (
+                        <div key={college.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
+                          <div>
+                            <p className="font-medium">{college.name}</p>
+                            <p className="text-sm text-muted-foreground">{college.code}</p>
+                          </div>
+                          <EntityActionsMenu
+                            onEdit={() => setEditCollegeDialog({ open: true, college })}
+                            onDelete={() =>
+                              setDeleteDialog({
+                                open: true,
+                                type: "colleges",
+                                id: college.id,
+                                name: college.name,
+                              })
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="departments">
             <Card>
               <CardHeader>
                 <CardTitle>Create Department</CardTitle>
-                <CardDescription>Add a new department to the system</CardDescription>
+                <CardDescription>Add a new department to a college</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleCreateDepartment} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dept-college">College</Label>
+                    <Select value={selectedCollege} onValueChange={setSelectedCollege} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select college" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colleges.map((college) => (
+                          <SelectItem key={college.id} value={college.id}>
+                            {college.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="dept-name">Department Name</Label>
                     <Input
@@ -359,25 +497,36 @@ const Admin = () => {
                   <div className="mt-6">
                     <h3 className="font-semibold mb-3">Existing Departments</h3>
                     <div className="space-y-2">
-                      {departments.map((dept) => (
-                        <div key={dept.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{dept.name}</p>
-                            <p className="text-sm text-muted-foreground">{dept.code}</p>
+                      {colleges.map((college) => {
+                        const collegeDepts = departments.filter(d => d.college_id === college.id);
+                        if (collegeDepts.length === 0) return null;
+                        return (
+                          <div key={college.id} className="mb-4">
+                            <h4 className="font-medium text-primary mb-2">{college.name}</h4>
+                            <div className="space-y-2 ml-4">
+                              {collegeDepts.map((dept) => (
+                                <div key={dept.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
+                                  <div>
+                                    <p className="font-medium">{dept.name}</p>
+                                    <p className="text-sm text-muted-foreground">{dept.code}</p>
+                                  </div>
+                                  <EntityActionsMenu
+                                    onEdit={() => setEditDeptDialog({ open: true, department: dept })}
+                                    onDelete={() =>
+                                      setDeleteDialog({
+                                        open: true,
+                                        type: "departments",
+                                        id: dept.id,
+                                        name: dept.name,
+                                      })
+                                    }
+                                  />
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <EntityActionsMenu
-                            onEdit={() => setEditDeptDialog({ open: true, department: dept })}
-                            onDelete={() =>
-                              setDeleteDialog({
-                                open: true,
-                                type: "departments",
-                                id: dept.id,
-                                name: dept.name,
-                              })
-                            }
-                          />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -389,18 +538,33 @@ const Admin = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Create Year</CardTitle>
-                <CardDescription>Add years to a department</CardDescription>
+                <CardDescription>Add a new year to a department</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleCreateYear} className="space-y-4">
                   <div className="space-y-2">
+                    <Label htmlFor="year-college">College</Label>
+                    <Select value={selectedCollegeForYear} onValueChange={setSelectedCollegeForYear} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select college" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colleges.map((college) => (
+                          <SelectItem key={college.id} value={college.id}>
+                            {college.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="year-dept">Department</Label>
-                    <Select value={selectedDept} onValueChange={setSelectedDept} required>
-                      <SelectTrigger id="year-dept">
+                    <Select value={selectedDept} onValueChange={setSelectedDept} required disabled={!selectedCollegeForYear}>
+                      <SelectTrigger>
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent>
-                        {departments.map((dept) => (
+                        {filteredDeptsForYear.map((dept) => (
                           <SelectItem key={dept.id} value={dept.id}>
                             {dept.name}
                           </SelectItem>
@@ -409,9 +573,9 @@ const Admin = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="year-num">Year Number</Label>
+                    <Label htmlFor="year-number">Year Number</Label>
                     <Select value={yearNumber} onValueChange={setYearNumber} required>
-                      <SelectTrigger id="year-num">
+                      <SelectTrigger>
                         <SelectValue placeholder="Select year" />
                       </SelectTrigger>
                       <SelectContent>
@@ -429,24 +593,42 @@ const Admin = () => {
                   <div className="mt-6">
                     <h3 className="font-semibold mb-3">Existing Years</h3>
                     <div className="space-y-2">
-                      {years.map((year) => (
-                        <div key={year.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
-                          <p className="font-medium">
-                            {year.department?.name} - Year {year.year_number}
-                          </p>
-                          <EntityActionsMenu
-                            onEdit={() => setEditYearDialog({ open: true, year })}
-                            onDelete={() =>
-                              setDeleteDialog({
-                                open: true,
-                                type: "years",
-                                id: year.id,
-                                name: `${year.department?.name} - Year ${year.year_number}`,
-                              })
-                            }
-                          />
-                        </div>
-                      ))}
+                      {colleges.map((college) => {
+                        const collegeDepts = departments.filter(d => d.college_id === college.id);
+                        if (collegeDepts.length === 0) return null;
+                        return (
+                          <div key={college.id} className="mb-4">
+                            <h4 className="font-medium text-primary mb-2">{college.name}</h4>
+                            {collegeDepts.map((dept) => {
+                              const deptYears = years.filter(y => y.department_id === dept.id);
+                              if (deptYears.length === 0) return null;
+                              return (
+                                <div key={dept.id} className="ml-4 mb-3">
+                                  <h5 className="font-medium text-sm mb-2">{dept.name}</h5>
+                                  <div className="space-y-2 ml-4">
+                                    {deptYears.map((year) => (
+                                      <div key={year.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
+                                        <p className="font-medium">Year {year.year_number}</p>
+                                        <EntityActionsMenu
+                                          onEdit={() => setEditYearDialog({ open: true, year })}
+                                          onDelete={() =>
+                                            setDeleteDialog({
+                                              open: true,
+                                              type: "years",
+                                              id: year.id,
+                                              name: `Year ${year.year_number}`,
+                                            })
+                                          }
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -458,20 +640,50 @@ const Admin = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Create Section</CardTitle>
-                <CardDescription>Add sections to a year</CardDescription>
+                <CardDescription>Add a new section to a year</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleCreateSection} className="space-y-4">
                   <div className="space-y-2">
+                    <Label htmlFor="section-college">College</Label>
+                    <Select value={selectedCollegeForSection} onValueChange={setSelectedCollegeForSection} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select college" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colleges.map((college) => (
+                          <SelectItem key={college.id} value={college.id}>
+                            {college.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="section-dept">Department</Label>
+                    <Select value={selectedDeptForSection} onValueChange={setSelectedDeptForSection} required disabled={!selectedCollegeForSection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredDeptsForSection.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="section-year">Year</Label>
-                    <Select value={selectedYear} onValueChange={setSelectedYear} required>
-                      <SelectTrigger id="section-year">
+                    <Select value={selectedYear} onValueChange={setSelectedYear} required disabled={!selectedDeptForSection}>
+                      <SelectTrigger>
                         <SelectValue placeholder="Select year" />
                       </SelectTrigger>
                       <SelectContent>
-                        {years.map((year) => (
+                        {filteredYearsForSection.map((year) => (
                           <SelectItem key={year.id} value={year.id}>
-                            {year.department?.name} - Year {year.year_number}
+                            Year {year.year_number}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -496,9 +708,12 @@ const Admin = () => {
                     <div className="space-y-2">
                       {sections.map((section) => (
                         <div key={section.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
-                          <p className="font-medium">
-                            {section.year?.department?.name} - Year {section.year?.year_number} - Section {section.name}
-                          </p>
+                          <div>
+                            <p className="font-medium">{section.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {section.year?.department?.name} - Year {section.year?.year_number}
+                            </p>
+                          </div>
                           <EntityActionsMenu
                             onEdit={() => setEditSectionDialog({ open: true, section })}
                             onDelete={() =>
@@ -506,7 +721,7 @@ const Admin = () => {
                                 open: true,
                                 type: "sections",
                                 id: section.id,
-                                name: `${section.year?.department?.name} - Year ${section.year?.year_number} - Section ${section.name}`,
+                                name: section.name,
                               })
                             }
                           />
@@ -523,20 +738,65 @@ const Admin = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Add Student</CardTitle>
-                <CardDescription>Add a student to a section</CardDescription>
+                <CardDescription>Add a new student to a section</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleCreateStudent} className="space-y-4">
                   <div className="space-y-2">
+                    <Label htmlFor="student-college">College</Label>
+                    <Select value={selectedCollegeForStudent} onValueChange={setSelectedCollegeForStudent} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select college" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colleges.map((college) => (
+                          <SelectItem key={college.id} value={college.id}>
+                            {college.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="student-dept">Department</Label>
+                    <Select value={selectedDeptForStudent} onValueChange={setSelectedDeptForStudent} required disabled={!selectedCollegeForStudent}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredDeptsForStudent.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="student-year">Year</Label>
+                    <Select value={selectedYearForStudent} onValueChange={setSelectedYearForStudent} required disabled={!selectedDeptForStudent}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredYearsForStudent.map((year) => (
+                          <SelectItem key={year.id} value={year.id}>
+                            Year {year.year_number}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="student-section">Section</Label>
-                    <Select value={selectedSection} onValueChange={setSelectedSection} required>
-                      <SelectTrigger id="student-section">
+                    <Select value={selectedSection} onValueChange={setSelectedSection} required disabled={!selectedYearForStudent}>
+                      <SelectTrigger>
                         <SelectValue placeholder="Select section" />
                       </SelectTrigger>
                       <SelectContent>
-                        {sections.map((section) => (
+                        {filteredSectionsForStudent.map((section) => (
                           <SelectItem key={section.id} value={section.id}>
-                            {section.year?.department?.name} - Year {section.year?.year_number} - Section {section.name}
+                            {section.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -546,7 +806,7 @@ const Admin = () => {
                     <Label htmlFor="student-roll">Roll Number</Label>
                     <Input
                       id="student-roll"
-                      placeholder="2023CSE001"
+                      placeholder="22CS101"
                       value={rollNumber}
                       onChange={(e) => setRollNumber(e.target.value)}
                       required
@@ -567,10 +827,22 @@ const Admin = () => {
                     <Input
                       id="student-email"
                       type="email"
-                      placeholder="john.doe@college.edu"
+                      placeholder="student@example.com"
                       value={studentEmail}
                       onChange={(e) => setStudentEmail(e.target.value)}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="student-gender">Gender</Label>
+                    <Select value={studentGender} onValueChange={setStudentGender} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <Button type="submit">Add Student</Button>
                 </form>
@@ -584,7 +856,7 @@ const Admin = () => {
                           <div>
                             <p className="font-medium">{student.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              Roll: {student.roll_number} | {student.section?.year?.department?.name} - Year {student.section?.year?.year_number} - Section {student.section?.name}
+                              {student.roll_number} - {student.section?.name} - {student.gender || 'N/A'}
                             </p>
                           </div>
                           <EntityActionsMenu
@@ -611,40 +883,30 @@ const Admin = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Attendance Sheet Templates</CardTitle>
-                <CardDescription>Create and manage custom attendance sheet templates</CardDescription>
+                <CardDescription>Manage attendance sheet templates</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button onClick={() => navigate("/template/new")} className="mb-6">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create New Template
-                </Button>
-
                 {templates.length > 0 ? (
                   <div className="space-y-2">
                     {templates.map((template) => (
-                      <div key={template.id} className="p-4 bg-muted rounded-lg flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-medium text-lg">{template.name}</p>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {template.department && <span>Department: {template.department.name}</span>}
-                            {template.year && <span className="ml-3">Year: {template.year.year_number}</span>}
-                            {template.section && <span className="ml-3">Section: {template.section.name}</span>}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Created {new Date(template.created_at).toLocaleDateString()}
+                      <div key={template.id} className="p-3 bg-muted rounded-lg flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{template.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {template.department?.name || 'All'} - Year {template.year?.year_number || 'All'} - Section {template.section?.name || 'All'}
                           </p>
                         </div>
                         <div className="flex gap-2">
                           <Button
-                            size="sm"
                             variant="outline"
+                            size="sm"
                             onClick={() => navigate(`/template/${template.id}`)}
                           >
                             Edit
                           </Button>
                           <Button
-                            size="sm"
                             variant="destructive"
+                            size="sm"
                             onClick={() =>
                               setDeleteDialog({
                                 open: true,
@@ -676,14 +938,22 @@ const Admin = () => {
         </Tabs>
 
         {/* Edit Dialogs */}
+        <EditCollegeDialog
+          college={editCollegeDialog.college}
+          open={editCollegeDialog.open}
+          onOpenChange={(open) => setEditCollegeDialog({ ...editCollegeDialog, open })}
+          onSuccess={fetchData}
+        />
         <EditDepartmentDialog
           department={editDeptDialog.department}
+          colleges={colleges}
           open={editDeptDialog.open}
           onOpenChange={(open) => setEditDeptDialog({ ...editDeptDialog, open })}
           onSuccess={fetchData}
         />
         <EditYearDialog
           year={editYearDialog.year}
+          colleges={colleges}
           departments={departments}
           open={editYearDialog.open}
           onOpenChange={(open) => setEditYearDialog({ ...editYearDialog, open })}
@@ -691,6 +961,8 @@ const Admin = () => {
         />
         <EditSectionDialog
           section={editSectionDialog.section}
+          colleges={colleges}
+          departments={departments}
           years={years}
           open={editSectionDialog.open}
           onOpenChange={(open) => setEditSectionDialog({ ...editSectionDialog, open })}
@@ -698,6 +970,9 @@ const Admin = () => {
         />
         <EditStudentDialog
           student={editStudentDialog.student}
+          colleges={colleges}
+          departments={departments}
+          years={years}
           sections={sections}
           open={editStudentDialog.open}
           onOpenChange={(open) => setEditStudentDialog({ ...editStudentDialog, open })}

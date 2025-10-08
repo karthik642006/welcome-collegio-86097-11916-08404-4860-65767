@@ -9,11 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EditDepartmentDialogProps {
   department: any;
+  colleges: any[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -21,18 +23,21 @@ interface EditDepartmentDialogProps {
 
 export const EditDepartmentDialog = ({
   department,
+  colleges,
   open,
   onOpenChange,
   onSuccess,
 }: EditDepartmentDialogProps) => {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const [collegeId, setCollegeId] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (department) {
       setName(department.name || "");
       setCode(department.code || "");
+      setCollegeId(department.college_id || "");
     }
   }, [department]);
 
@@ -43,7 +48,7 @@ export const EditDepartmentDialog = ({
     try {
       const { error } = await supabase
         .from("departments")
-        .update({ name, code })
+        .update({ name, code, college_id: collegeId })
         .eq("id", department.id);
 
       if (error) throw error;
@@ -66,6 +71,21 @@ export const EditDepartmentDialog = ({
           <DialogDescription>Update department information</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-dept-college">College</Label>
+            <Select value={collegeId} onValueChange={setCollegeId} required>
+              <SelectTrigger id="edit-dept-college">
+                <SelectValue placeholder="Select college" />
+              </SelectTrigger>
+              <SelectContent>
+                {colleges.map((college) => (
+                  <SelectItem key={college.id} value={college.id}>
+                    {college.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="edit-dept-name">Department Name</Label>
             <Input

@@ -124,7 +124,7 @@ export type Database = {
           },
         ]
       }
-      departments: {
+      colleges: {
         Row: {
           code: string
           created_at: string
@@ -146,7 +146,41 @@ export type Database = {
           id?: string
           name?: string
         }
+        Relationships: []
+      }
+      departments: {
+        Row: {
+          code: string
+          college_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          college_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          college_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
         Relationships: [
+          {
+            foreignKeyName: "departments_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "departments_created_by_fkey"
             columns: ["created_by"]
@@ -216,6 +250,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          gender: string | null
           id: string
           name: string
           roll_number: string
@@ -224,6 +259,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          gender?: string | null
           id?: string
           name: string
           roll_number: string
@@ -232,6 +268,7 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          gender?: string | null
           id?: string
           name?: string
           roll_number?: string
