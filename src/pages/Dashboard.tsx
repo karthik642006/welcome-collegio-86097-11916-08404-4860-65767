@@ -3,13 +3,33 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, LogOut, Settings } from "lucide-react";
+import { GraduationCap, LogOut, Settings, Building2, BookOpen, Calendar, Users } from "lucide-react";
 import { toast } from "sonner";
+import { HierarchyBreadcrumb } from "@/components/navigation/HierarchyBreadcrumb";
+
+type College = {
+  id: string;
+  name: string;
+  code: string;
+};
 
 type Department = {
   id: string;
   name: string;
   code: string;
+  college_id: string;
+};
+
+type Year = {
+  id: string;
+  year_number: number;
+  department_id: string;
+};
+
+type Section = {
+  id: string;
+  name: string;
+  year_id: string;
 };
 
 const DEPARTMENT_COLORS = [
@@ -25,14 +45,19 @@ const DEPARTMENT_COLORS = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [colleges, setColleges] = useState<College[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [years, setYears] = useState<Year[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  const [breadcrumb, setBreadcrumb] = useState<Array<{id: string; name: string; level: "college" | "department" | "year" | "section"}>>([]);
 
   useEffect(() => {
     checkUser();
-    fetchDepartments();
+    fetchColleges();
   }, []);
 
   const checkUser = async () => {
@@ -48,17 +73,71 @@ const Dashboard = () => {
     }
   };
 
-  const fetchDepartments = async () => {
+  const fetchColleges = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("colleges")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      setColleges(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load colleges");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDepartments = async (collegeId: string) => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from("departments")
         .select("*")
+        .eq("college_id", collegeId)
         .order("name");
 
       if (error) throw error;
       setDepartments(data || []);
     } catch (error: any) {
       toast.error("Failed to load departments");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchYears = async (departmentId: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("years")
+        .select("*")
+        .eq("department_id", departmentId)
+        .order("year_number");
+
+      if (error) throw error;
+      setYears(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load years");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSections = async (yearId: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("sections")
+        .select("*")
+        .eq("year_id", yearId)
+        .order("name");
+
+      if (error) throw error;
+      setSections(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load sections");
     } finally {
       setLoading(false);
     }
@@ -73,8 +152,57 @@ const Dashboard = () => {
     }
   };
 
-  const handleDepartmentClick = (deptId: string) => {
-    navigate(`/department/${deptId}`);
+  const handleCollegeClick = (college: College) => {
+    setBreadcrumb([{ id: college.id, name: college.name, level: "college" }]);
+    setDepartments([]);
+    setYears([]);
+    setSections([]);
+    fetchDepartments(college.id);
+  };
+
+  const handleDepartmentClick = (dept: Department) => {
+    const newBreadcrumb = [...breadcrumb.filter(b => b.level === "college"), { id: dept.id, name: dept.name, level: "department" as const }];
+    setBreadcrumb(newBreadcrumb);
+    setYears([]);
+    setSections([]);
+    fetchYears(dept.id);
+  };
+
+  const handleYearClick = (year: Year) => {
+    const newBreadcrumb = [...breadcrumb.filter(b => b.level !== "year" && b.level !== "section"), { id: year.id, name: `Year ${year.year_number}`, level: "year" as const }];
+    setBreadcrumb(newBreadcrumb);
+    setSections([]);
+    fetchSections(year.id);
+  };
+
+  const handleSectionClick = (section: Section) => {
+    navigate(`/attendance/${section.id}`);
+  };
+
+  const handleBreadcrumbNavigate = (index: number) => {
+    if (index === -1) {
+      // Navigate to home (colleges)
+      setBreadcrumb([]);
+      setDepartments([]);
+      setYears([]);
+      setSections([]);
+      fetchColleges();
+    } else {
+      const item = breadcrumb[index];
+      const newBreadcrumb = breadcrumb.slice(0, index + 1);
+      setBreadcrumb(newBreadcrumb);
+
+      if (item.level === "college") {
+        setYears([]);
+        setSections([]);
+        fetchDepartments(item.id);
+      } else if (item.level === "department") {
+        setSections([]);
+        fetchYears(item.id);
+      } else if (item.level === "year") {
+        fetchSections(item.id);
+      }
+    }
   };
 
   if (loading) {
@@ -117,44 +245,139 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Departments</h2>
-          <p className="text-muted-foreground">Select a department to view attendance</p>
-        </div>
+        <HierarchyBreadcrumb items={breadcrumb} onNavigate={handleBreadcrumbNavigate} />
 
-        {departments.length === 0 ? (
-          <Card className="max-w-md mx-auto text-center">
-            <CardHeader>
-              <CardTitle>No Departments Found</CardTitle>
-              <CardDescription>
-                Please contact your administrator to set up departments
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={() => navigate("/admin")}>Go to Admin Panel</Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {departments.map((dept, index) => (
-              <Card
-                key={dept.id}
-                className="cursor-pointer hover:shadow-[var(--shadow-strong)] transition-all duration-300 hover:-translate-y-1 overflow-hidden group"
-                onClick={() => handleDepartmentClick(dept.id)}
-              >
-                <div className={`h-32 bg-gradient-to-br ${DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length]} flex items-center justify-center relative overflow-hidden`}>
-                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
-                  <div className="relative z-10 text-center">
-                    <GraduationCap className="h-12 w-12 text-white mx-auto mb-2" />
-                    <p className="text-white/90 text-sm font-medium">{dept.code}</p>
-                  </div>
-                </div>
+        {/* Show Colleges */}
+        {breadcrumb.length === 0 && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold mb-2">Colleges</h2>
+              <p className="text-muted-foreground">Select a college to continue</p>
+            </div>
+            {colleges.length === 0 ? (
+              <Card className="max-w-md mx-auto text-center">
                 <CardHeader>
-                  <CardTitle className="text-lg">{dept.name}</CardTitle>
-                  <CardDescription>Click to view years and sections</CardDescription>
+                  <CardTitle>No Colleges Found</CardTitle>
+                  <CardDescription>Please contact your administrator to set up colleges</CardDescription>
                 </CardHeader>
               </Card>
-            ))}
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {colleges.map((college) => (
+                  <Button
+                    key={college.id}
+                    onClick={() => handleCollegeClick(college)}
+                    variant="outline"
+                    className="h-auto py-8 flex flex-col items-center gap-3 hover:shadow-[var(--shadow-medium)] transition-all"
+                  >
+                    <Building2 className="h-10 w-10 text-primary" />
+                    <div className="text-center">
+                      <div className="font-semibold">{college.name}</div>
+                      <div className="text-sm text-muted-foreground">{college.code}</div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Show Departments */}
+        {breadcrumb.length > 0 && breadcrumb[breadcrumb.length - 1].level === "college" && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold mb-2">Departments</h2>
+              <p className="text-muted-foreground">Select a department to continue</p>
+            </div>
+            {departments.length === 0 ? (
+              <Card className="max-w-md mx-auto text-center">
+                <CardHeader>
+                  <CardTitle>No Departments Found</CardTitle>
+                  <CardDescription>No departments configured for this college</CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {departments.map((dept) => (
+                  <Button
+                    key={dept.id}
+                    onClick={() => handleDepartmentClick(dept)}
+                    variant="outline"
+                    className="h-auto py-8 flex flex-col items-center gap-3 hover:shadow-[var(--shadow-medium)] transition-all"
+                  >
+                    <BookOpen className="h-10 w-10 text-primary" />
+                    <div className="text-center">
+                      <div className="font-semibold">{dept.name}</div>
+                      <div className="text-sm text-muted-foreground">{dept.code}</div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Show Years */}
+        {breadcrumb.length > 0 && breadcrumb[breadcrumb.length - 1].level === "department" && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold mb-2">Years</h2>
+              <p className="text-muted-foreground">Select a year to continue</p>
+            </div>
+            {years.length === 0 ? (
+              <Card className="max-w-md mx-auto text-center">
+                <CardHeader>
+                  <CardTitle>No Years Found</CardTitle>
+                  <CardDescription>No years configured for this department</CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {years.map((year) => (
+                  <Button
+                    key={year.id}
+                    onClick={() => handleYearClick(year)}
+                    variant="outline"
+                    className="h-auto py-8 flex flex-col items-center gap-3 hover:shadow-[var(--shadow-medium)] transition-all"
+                  >
+                    <Calendar className="h-10 w-10 text-primary" />
+                    <div className="font-semibold text-lg">Year {year.year_number}</div>
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Show Sections */}
+        {breadcrumb.length > 0 && breadcrumb[breadcrumb.length - 1].level === "year" && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold mb-2">Sections</h2>
+              <p className="text-muted-foreground">Select a section to mark attendance</p>
+            </div>
+            {sections.length === 0 ? (
+              <Card className="max-w-md mx-auto text-center">
+                <CardHeader>
+                  <CardTitle>No Sections Found</CardTitle>
+                  <CardDescription>No sections configured for this year</CardDescription>
+                </CardHeader>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {sections.map((section) => (
+                  <Button
+                    key={section.id}
+                    onClick={() => handleSectionClick(section)}
+                    variant="outline"
+                    className="h-auto py-8 flex flex-col items-center gap-3 hover:shadow-[var(--shadow-medium)] transition-all hover:scale-105"
+                  >
+                    <Users className="h-10 w-10 text-primary" />
+                    <div className="font-semibold text-lg">Section {section.name}</div>
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
