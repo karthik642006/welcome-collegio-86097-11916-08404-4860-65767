@@ -14,9 +14,11 @@ export default function TemplateBuilder() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [templateName, setTemplateName] = useState("");
+  const [colleges, setColleges] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [years, setYears] = useState<any[]>([]);
   const [sections, setSections] = useState<any[]>([]);
+  const [selectedCollege, setSelectedCollege] = useState("");
   const [selectedDept, setSelectedDept] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedSection, setSelectedSection] = useState("");
@@ -25,7 +27,7 @@ export default function TemplateBuilder() {
   const [maxCol, setMaxCol] = useState(10);
 
   useEffect(() => {
-    fetchDepartments();
+    fetchColleges();
     if (templateId && templateId !== "new") {
       fetchTemplate();
     } else {
@@ -65,8 +67,16 @@ export default function TemplateBuilder() {
     setCells(defaultCells);
   };
 
-  const fetchDepartments = async () => {
-    const { data } = await supabase.from("departments").select("*");
+  const fetchColleges = async () => {
+    const { data } = await supabase.from("colleges").select("*");
+    if (data) setColleges(data);
+  };
+
+  const fetchDepartments = async (collegeId: string) => {
+    const { data } = await supabase
+      .from("departments")
+      .select("*")
+      .eq("college_id", collegeId);
     if (data) setDepartments(data);
   };
 
@@ -97,14 +107,26 @@ export default function TemplateBuilder() {
   };
 
   useEffect(() => {
+    if (selectedCollege) {
+      fetchDepartments(selectedCollege);
+      setSelectedDept("");
+      setSelectedYear("");
+      setSelectedSection("");
+    }
+  }, [selectedCollege]);
+
+  useEffect(() => {
     if (selectedDept) {
       fetchYears(selectedDept);
+      setSelectedYear("");
+      setSelectedSection("");
     }
   }, [selectedDept]);
 
   useEffect(() => {
     if (selectedYear) {
       fetchSections(selectedYear);
+      setSelectedSection("");
     }
   }, [selectedYear]);
 
@@ -224,7 +246,7 @@ export default function TemplateBuilder() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <Label>Template Name</Label>
             <Input
@@ -235,8 +257,24 @@ export default function TemplateBuilder() {
           </div>
 
           <div>
+            <Label>College (Optional)</Label>
+            <Select value={selectedCollege} onValueChange={setSelectedCollege}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select college" />
+              </SelectTrigger>
+              <SelectContent>
+                {colleges.map((college) => (
+                  <SelectItem key={college.id} value={college.id}>
+                    {college.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
             <Label>Department (Optional)</Label>
-            <Select value={selectedDept} onValueChange={setSelectedDept}>
+            <Select value={selectedDept} onValueChange={setSelectedDept} disabled={!selectedCollege}>
               <SelectTrigger>
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
