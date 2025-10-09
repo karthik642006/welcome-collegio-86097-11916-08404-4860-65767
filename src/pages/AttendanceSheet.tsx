@@ -70,22 +70,11 @@ const AttendanceSheet = () => {
       const deptId = sectionData?.year?.department?.id;
       const collegeId = sectionData?.year?.department?.college_id;
       
-      // Build filter conditions
-      const conditions = [];
-      if (sectionId) conditions.push(`section_id.eq.${sectionId}`);
-      if (yearId) conditions.push(`year_id.eq.${yearId}`);
-      if (deptId) conditions.push(`department_id.eq.${deptId}`);
-      if (collegeId) conditions.push(`college_id.eq.${collegeId}`);
-      
-      const { data: templatesData, error: templatesError } = await supabase
+      const { data: templatesData } = await supabase
         .from("attendance_sheet_templates")
         .select("*, template_cells(*)")
-        .or(conditions.join(","))
+        .or(`section_id.eq.${sectionId},year_id.eq.${yearId},department_id.eq.${deptId},college_id.eq.${collegeId},and(section_id.is.null,year_id.is.null,department_id.is.null,college_id.is.null)`)
         .order("created_at", { ascending: false });
-      
-      if (templatesError) {
-        console.error("Template fetch error:", templatesError);
-      }
 
       setTemplates(templatesData || []);
       if (templatesData && templatesData.length > 0) {
