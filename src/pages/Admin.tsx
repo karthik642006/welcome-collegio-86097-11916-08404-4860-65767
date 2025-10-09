@@ -882,8 +882,16 @@ const Admin = () => {
           <TabsContent value="templates">
             <Card>
               <CardHeader>
-                <CardTitle>Attendance Sheet Templates</CardTitle>
-                <CardDescription>Manage attendance sheet templates</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Attendance Sheet Templates</CardTitle>
+                    <CardDescription>Manage attendance sheet templates</CardDescription>
+                  </div>
+                  <Button onClick={() => navigate('/template/new')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Create Template
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {templates.length > 0 ? (
