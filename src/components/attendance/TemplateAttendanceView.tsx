@@ -1,6 +1,5 @@
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
 
 type Student = {
   id: string;
@@ -109,17 +108,27 @@ export function TemplateAttendanceView({
             key={`${row}-${col}`}
             rowSpan={cell.rowspan}
             colSpan={cell.colspan}
-            className={cellClasses}
+            className="border border-border p-2"
             style={cellStyle}
           >
-            <div className="flex items-center justify-center h-full p-2">
-              <Checkbox
-                id={`att-${student.id}`}
-                checked={isPresent}
-                onCheckedChange={() => onToggle(student.id)}
+            <div className="flex items-center justify-center h-full">
+              <button
+                type="button"
+                onClick={() => onToggle(student.id)}
+                className={cn(
+                  "min-h-[50px] min-w-[70px] rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm",
+                  isPresent
+                    ? "bg-green-50 hover:bg-green-100 border-2 border-green-500 dark:bg-green-950 dark:hover:bg-green-900"
+                    : "bg-red-50 hover:bg-red-100 border-2 border-red-500 dark:bg-red-950 dark:hover:bg-red-900"
+                )}
                 aria-label={isPresent ? "Mark as absent" : "Mark as present"}
-                className="h-6 w-6"
-              />
+              >
+                {isPresent ? (
+                  <Check className="h-7 w-7 text-green-600 dark:text-green-400" strokeWidth={3} />
+                ) : (
+                  <X className="h-7 w-7 text-red-600 dark:text-red-400" strokeWidth={3} />
+                )}
+              </button>
             </div>
           </td>
         );
