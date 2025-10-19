@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Edit, Check, X, Plus, Minus, SplitSquareHorizontal, SplitSquareVertical } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -30,9 +31,19 @@ interface TemplateGridProps {
 
 export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMaxCol }: TemplateGridProps) {
   const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  const [selectedCells, setSelectedCells] = useState<{ row: number; col: number }[]>([]);
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [editDialog, setEditDialog] = useState(false);
   const [editingCell, setEditingCell] = useState<Cell | null>(null);
   const [checkboxStates, setCheckboxStates] = useState<Record<string, boolean>>({});
+  const [serialDataFormula, setSerialDataFormula] = useState({
+    startRow: 0,
+    startCol: 0,
+    endRow: 0,
+    endCol: 0,
+    startNumber: "",
+    endNumber: ""
+  });
 
   const toggleCheckbox = (cellKey: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -62,14 +73,38 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
     );
   };
 
-  const handleCellClick = (row: number, col: number) => {
+  const handleCellClick = (row: number, col: number, e?: React.MouseEvent) => {
     const cell = getCellAt(row, col);
-    if (cell) {
-      setEditingCell({ ...cell });
-      setEditDialog(true);
+    
+    if (isMultiSelectMode) {
+      // Multi-select mode
+      if (!cell) {
+        const isSelected = selectedCells.some(c => c.row === row && c.col === col);
+        if (isSelected) {
+          setSelectedCells(selectedCells.filter(c => !(c.row === row && c.col === col)));
+        } else {
+          setSelectedCells([...selectedCells, { row, col }]);
+        }
+      }
     } else {
-      setSelectedCell({ row, col });
+      // Normal mode
+      if (cell) {
+        setEditingCell({ ...cell });
+        setEditDialog(true);
+      } else {
+        setSelectedCell({ row, col });
+      }
     }
+  };
+
+  const getColumnLetter = (col: number): string => {
+    let letter = '';
+    let num = col;
+    while (num >= 0) {
+      letter = String.fromCharCode(65 + (num % 26)) + letter;
+      num = Math.floor(num / 26) - 1;
+    }
+    return letter;
   };
 
   const createCell = () => {
@@ -104,6 +139,90 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
     setEditDialog(false);
     setEditingCell(null);
     toast.success("Cell updated");
+  };
+
+  const createMultipleCells = () => {
+    if (selectedCells.length === 0) return;
+    
+    const newCells = selectedCells.map(pos => ({
+      row_index: pos.row,
+      col_index: pos.col,
+      rowspan: 1,
+      colspan: 1,
+      cell_type: "text",
+      label: "",
+    }));
+    
+    setCells([...cells, ...newCells]);
+    setSelectedCells([]);
+    setIsMultiSelectMode(false);
+    toast.success(`Created ${newCells.length} cells`);
+  };
+
+  const updateMultipleCells = (updates: Partial<Cell>) => {
+    if (selectedCells.length === 0) return;
+    
+    const updatedCells = cells.map(cell => {
+      const isSelected = selectedCells.some(
+        s => s.row === cell.row_index && s.col === cell.col_index
+      );
+      return isSelected ? { ...cell, ...updates } : cell;
+    });
+    
+    setCells(updatedCells);
+    setSelectedCells([]);
+    setIsMultiSelectMode(false);
+    toast.success(`Updated ${selectedCells.length} cells`);
+  };
+
+  const applySerialDataFormula = () => {
+    const { startRow, startCol, endRow, endCol, startNumber, endNumber } = serialDataFormula;
+    
+    if (!startNumber || !endNumber) {
+      toast.error("Please enter start and end numbers");
+      return;
+    }
+
+    const startNum = parseInt(startNumber);
+    const endNum = parseInt(endNumber);
+    
+    if (isNaN(startNum) || isNaN(endNum)) {
+      toast.error("Invalid numbers");
+      return;
+    }
+
+    const totalCells = (endRow - startRow + 1) * (endCol - startCol + 1);
+    const step = (endNum - startNum) / (totalCells - 1);
+    
+    let currentNum = startNum;
+    const newCells: Cell[] = [];
+    
+    for (let row = startRow; row <= endRow; row++) {
+      for (let col = startCol; col <= endCol; col++) {
+        if (!isCellOccupied(row, col)) {
+          newCells.push({
+            row_index: row,
+            col_index: col,
+            rowspan: 1,
+            colspan: 1,
+            cell_type: "static",
+            label: Math.round(currentNum).toString(),
+          });
+        }
+        currentNum += step;
+      }
+    }
+    
+    setCells([...cells, ...newCells]);
+    setSerialDataFormula({
+      startRow: 0,
+      startCol: 0,
+      endRow: 0,
+      endCol: 0,
+      startNumber: "",
+      endNumber: ""
+    });
+    toast.success(`Created ${newCells.length} cells with serial data`);
   };
 
   const splitCellHorizontally = (cell: Cell) => {
@@ -254,8 +373,10 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
               key={`${row}-${col}`}
               className={`border border-dashed border-muted-foreground/20 p-2 cursor-pointer hover:bg-primary/5 ${
                 selectedCell?.row === row && selectedCell?.col === col ? "bg-primary/10" : ""
+              } ${
+                selectedCells.some(c => c.row === row && c.col === col) ? "bg-blue-200 dark:bg-blue-900" : ""
               }`}
-              onClick={() => handleCellClick(row, col)}
+              onClick={(e) => handleCellClick(row, col, e)}
             >
               <div className="h-8 flex items-center justify-center text-muted-foreground/50 text-xs">
                 {selectedCell?.row === row && selectedCell?.col === col ? "Click to create" : ""}
@@ -267,15 +388,18 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
       
       grid.push([
         <tr key={row}>
-          <td className="border-r border-border p-1 bg-muted/50 sticky left-0">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-6 w-6"
-              onClick={() => deleteRow(row)}
-            >
-              <Minus className="h-3 w-3" />
-            </Button>
+          <td className="border-r border-border p-2 bg-muted/50 sticky left-0 text-center">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-sm font-semibold">{row + 1}</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-5 w-5"
+                onClick={() => deleteRow(row)}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+            </div>
           </td>
           {rowCells}
         </tr>
@@ -294,14 +418,17 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
               <th className="border-r border-b border-border p-2 bg-muted sticky left-0"></th>
               {Array.from({ length: maxCol }).map((_, col) => (
                 <th key={col} className="border border-border p-2 bg-muted">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6"
-                    onClick={() => deleteColumn(col)}
-                  >
-                    <Minus className="h-3 w-3" />
-                  </Button>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-sm font-semibold">{getColumnLetter(col)}</span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-5 w-5"
+                      onClick={() => deleteColumn(col)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </th>
               ))}
             </tr>
@@ -310,10 +437,57 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
         </table>
       </div>
 
-      {selectedCell && (
+      <div className="flex items-center gap-2 p-4 border rounded-lg bg-card">
+        <Button 
+          onClick={() => {
+            setIsMultiSelectMode(!isMultiSelectMode);
+            setSelectedCells([]);
+            setSelectedCell(null);
+          }}
+          variant={isMultiSelectMode ? "default" : "outline"}
+          size="sm"
+        >
+          {isMultiSelectMode ? "Exit Multi-Select" : "Multi-Select Mode"}
+        </Button>
+        {isMultiSelectMode && selectedCells.length > 0 && (
+          <>
+            <span className="text-sm">
+              Selected {selectedCells.length} cells
+            </span>
+            <Button onClick={createMultipleCells} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Cells
+            </Button>
+            <Button 
+              onClick={() => {
+                if (selectedCells.length > 0) {
+                  // Get first selected cell that exists
+                  const firstCell = cells.find(c => 
+                    selectedCells.some(s => s.row === c.row_index && s.col === c.col_index)
+                  );
+                  if (firstCell) {
+                    setEditingCell({ ...firstCell });
+                    setEditDialog(true);
+                  }
+                }
+              }} 
+              size="sm"
+              variant="secondary"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Selected
+            </Button>
+            <Button onClick={() => setSelectedCells([])} size="sm" variant="outline">
+              Clear Selection
+            </Button>
+          </>
+        )}
+      </div>
+
+      {selectedCell && !isMultiSelectMode && (
         <div className="flex items-center gap-2 p-4 border rounded-lg bg-card">
           <span className="text-sm">
-            Selected: Row {selectedCell.row + 1}, Column {selectedCell.col + 1}
+            Selected: Row {selectedCell.row + 1}, Column {getColumnLetter(selectedCell.col)}
           </span>
           <Button onClick={createCell} size="sm">
             <Plus className="h-4 w-4 mr-2" />
@@ -326,9 +500,11 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
       )}
 
       <Dialog open={editDialog} onOpenChange={setEditDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Cell</DialogTitle>
+            <DialogTitle>
+              {selectedCells.length > 0 ? `Edit ${selectedCells.length} Selected Cells` : "Edit Cell"}
+            </DialogTitle>
           </DialogHeader>
           {editingCell && (
             <div className="space-y-4">
@@ -470,6 +646,99 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                 </div>
               </div>
 
+              {/* Serial Data Formula */}
+              <div className="border-t pt-4 mt-4">
+                <Label className="text-base font-semibold mb-3 block">Serial Data Fill</Label>
+                <div className="space-y-3 bg-muted/30 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Start Row</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={serialDataFormula.startRow}
+                        onChange={(e) => setSerialDataFormula({
+                          ...serialDataFormula,
+                          startRow: parseInt(e.target.value) || 0
+                        })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Start Column</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={serialDataFormula.startCol}
+                        onChange={(e) => setSerialDataFormula({
+                          ...serialDataFormula,
+                          startCol: parseInt(e.target.value) || 0
+                        })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">End Row</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={serialDataFormula.endRow}
+                        onChange={(e) => setSerialDataFormula({
+                          ...serialDataFormula,
+                          endRow: parseInt(e.target.value) || 0
+                        })}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">End Column</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        value={serialDataFormula.endCol}
+                        onChange={(e) => setSerialDataFormula({
+                          ...serialDataFormula,
+                          endCol: parseInt(e.target.value) || 0
+                        })}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs">Start Number</Label>
+                      <Input
+                        value={serialDataFormula.startNumber}
+                        onChange={(e) => setSerialDataFormula({
+                          ...serialDataFormula,
+                          startNumber: e.target.value
+                        })}
+                        placeholder="611823104001"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">End Number</Label>
+                      <Input
+                        value={serialDataFormula.endNumber}
+                        onChange={(e) => setSerialDataFormula({
+                          ...serialDataFormula,
+                          endNumber: e.target.value
+                        })}
+                        placeholder="611823204050"
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={applySerialDataFormula}
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                  >
+                    Apply Serial Data
+                  </Button>
+                </div>
+              </div>
+
               <div className="flex gap-2">
                 <Button
                   onClick={() => splitCellHorizontally(editingCell)}
@@ -495,10 +764,21 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
                 <Button onClick={() => setEditDialog(false)} variant="outline">
                   Cancel
                 </Button>
-                <Button onClick={updateCell}>
-                  <Check className="h-4 w-4 mr-2" />
-                  Update Cell
-                </Button>
+                {selectedCells.length > 0 ? (
+                  <Button onClick={() => updateMultipleCells({
+                    cell_type: editingCell.cell_type,
+                    label: editingCell.label,
+                    config: editingCell.config
+                  })}>
+                    <Check className="h-4 w-4 mr-2" />
+                    Update All Selected ({selectedCells.length})
+                  </Button>
+                ) : (
+                  <Button onClick={updateCell}>
+                    <Check className="h-4 w-4 mr-2" />
+                    Update Cell
+                  </Button>
+                )}
               </div>
             </div>
           )}
