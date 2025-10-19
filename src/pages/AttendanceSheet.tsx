@@ -65,15 +65,14 @@ const AttendanceSheet = () => {
       if (sectionError) throw sectionError;
       setSection(sectionData);
 
-      // Fetch templates for this section, year, department, or college
+      // Fetch templates for this section, year, or department
       const yearId = sectionData?.year?.id;
       const deptId = sectionData?.year?.department?.id;
-      const collegeId = sectionData?.year?.department?.college_id;
       
       const { data: templatesData } = await supabase
         .from("attendance_sheet_templates")
         .select("*, template_cells(*)")
-        .or(`section_id.eq.${sectionId},year_id.eq.${yearId},department_id.eq.${deptId},college_id.eq.${collegeId},and(section_id.is.null,year_id.is.null,department_id.is.null,college_id.is.null)`)
+        .or(`section_id.eq.${sectionId},year_id.eq.${yearId},department_id.eq.${deptId},and(section_id.is.null,year_id.is.null,department_id.is.null)`)
         .order("created_at", { ascending: false });
 
       setTemplates(templatesData || []);

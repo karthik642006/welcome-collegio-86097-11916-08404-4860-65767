@@ -77,7 +77,7 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
     const cell = getCellAt(row, col);
     
     if (isMultiSelectMode) {
-      // Multi-select mode
+      // Multi-select mode - select empty cells
       if (!cell) {
         const isSelected = selectedCells.some(c => c.row === row && c.col === col);
         if (isSelected) {
@@ -92,7 +92,17 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
         setEditingCell({ ...cell });
         setEditDialog(true);
       } else {
-        setSelectedCell({ row, col });
+        // Open edit dialog immediately for new cell
+        setEditingCell({
+          row_index: row,
+          col_index: col,
+          rowspan: 1,
+          colspan: 1,
+          cell_type: "text",
+          label: "",
+        });
+        setEditDialog(true);
+        setSelectedCell(null);
       }
     }
   };
@@ -108,17 +118,10 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
   };
 
   const createCell = () => {
-    if (!selectedCell) return;
-    const newCell: Cell = {
-      row_index: selectedCell.row,
-      col_index: selectedCell.col,
-      rowspan: 1,
-      colspan: 1,
-      cell_type: "text",
-      label: "",
-    };
-    setCells([...cells, newCell]);
-    setSelectedCell(null);
+    if (!editingCell) return;
+    setCells([...cells, editingCell]);
+    setEditDialog(false);
+    setEditingCell(null);
     toast.success("Cell created");
   };
 
@@ -141,7 +144,7 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
     toast.success("Cell updated");
   };
 
-  const createMultipleCells = () => {
+  const createMultipleCells = (cellConfig: Partial<Cell>) => {
     if (selectedCells.length === 0) return;
     
     const newCells = selectedCells.map(pos => ({
@@ -149,13 +152,16 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
       col_index: pos.col,
       rowspan: 1,
       colspan: 1,
-      cell_type: "text",
-      label: "",
+      cell_type: cellConfig.cell_type || "text",
+      label: cellConfig.label || "",
+      config: cellConfig.config || {}
     }));
     
     setCells([...cells, ...newCells]);
     setSelectedCells([]);
     setIsMultiSelectMode(false);
+    setEditDialog(false);
+    setEditingCell(null);
     toast.success(`Created ${newCells.length} cells`);
   };
 
@@ -454,28 +460,23 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
             <span className="text-sm">
               Selected {selectedCells.length} cells
             </span>
-            <Button onClick={createMultipleCells} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Cells
-            </Button>
             <Button 
               onClick={() => {
-                if (selectedCells.length > 0) {
-                  // Get first selected cell that exists
-                  const firstCell = cells.find(c => 
-                    selectedCells.some(s => s.row === c.row_index && s.col === c.col_index)
-                  );
-                  if (firstCell) {
-                    setEditingCell({ ...firstCell });
-                    setEditDialog(true);
-                  }
-                }
+                // Open edit dialog for multi-cell creation
+                setEditingCell({
+                  row_index: selectedCells[0].row,
+                  col_index: selectedCells[0].col,
+                  rowspan: 1,
+                  colspan: 1,
+                  cell_type: "text",
+                  label: "",
+                });
+                setEditDialog(true);
               }} 
               size="sm"
-              variant="secondary"
             >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Selected
+              <Plus className="h-4 w-4 mr-2" />
+              Create Cells
             </Button>
             <Button onClick={() => setSelectedCells([])} size="sm" variant="outline">
               Clear Selection
@@ -484,20 +485,6 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
         )}
       </div>
 
-      {selectedCell && !isMultiSelectMode && (
-        <div className="flex items-center gap-2 p-4 border rounded-lg bg-card">
-          <span className="text-sm">
-            Selected: Row {selectedCell.row + 1}, Column {getColumnLetter(selectedCell.col)}
-          </span>
-          <Button onClick={createCell} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Cell
-          </Button>
-          <Button onClick={() => setSelectedCell(null)} size="sm" variant="outline">
-            Cancel
-          </Button>
-        </div>
-      )}
 
       <Dialog open={editDialog} onOpenChange={setEditDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -761,22 +748,33 @@ export function TemplateGrid({ cells, setCells, maxRow, maxCol, setMaxRow, setMa
               </div>
 
               <div className="flex gap-2 justify-end">
-                <Button onClick={() => setEditDialog(false)} variant="outline">
+                <Button onClick={() => {
+                  setEditDialog(false);
+                  setEditingCell(null);
+                }} variant="outline">
                   Cancel
                 </Button>
                 {selectedCells.length > 0 ? (
-                  <Button onClick={() => updateMultipleCells({
+                  // Creating multiple new cells from selected empty cells
+                  <Button onClick={() => createMultipleCells({
                     cell_type: editingCell.cell_type,
                     label: editingCell.label,
                     config: editingCell.config
                   })}>
                     <Check className="h-4 w-4 mr-2" />
-                    Update All Selected ({selectedCells.length})
+                    Create Cells ({selectedCells.length})
                   </Button>
-                ) : (
+                ) : editingCell.id ? (
+                  // Updating existing cell
                   <Button onClick={updateCell}>
                     <Check className="h-4 w-4 mr-2" />
                     Update Cell
+                  </Button>
+                ) : (
+                  // Creating single new cell
+                  <Button onClick={createCell}>
+                    <Check className="h-4 w-4 mr-2" />
+                    Create Cell
                   </Button>
                 )}
               </div>
