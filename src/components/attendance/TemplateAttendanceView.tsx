@@ -81,11 +81,11 @@ export function TemplateAttendanceView({
   };
 
   const renderCell = (cell: Cell, row: number, col: number, studentIndex?: number) => {
+    const isHeaderRow = row < headerRows;
     const cellClasses = cn(
-      "border border-border p-3 min-h-[60px]",
-      cell.cell_type === "header" && "bg-muted font-semibold text-center",
-      cell.cell_type === "static" && "bg-card",
-      cell.cell_type === "checkbox" && "bg-background"
+      "p-4",
+      isHeaderRow ? "bg-muted/50 font-semibold text-left border-t" : "border-t",
+      cell.cell_type === "header" && "text-center",
     );
     
     const cellStyle = cell.config?.backgroundColor 
@@ -108,15 +108,15 @@ export function TemplateAttendanceView({
             key={`${row}-${col}`}
             rowSpan={cell.rowspan}
             colSpan={cell.colspan}
-            className="border border-border p-2"
+            className="p-4 border-t"
             style={cellStyle}
           >
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center">
               <button
                 type="button"
                 onClick={() => onToggle(student.id)}
                 className={cn(
-                  "min-h-[50px] min-w-[70px] rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm",
+                  "min-h-[60px] min-w-[80px] rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm",
                   isPresent
                     ? "bg-green-50 hover:bg-green-100 border-2 border-green-500 dark:bg-green-950 dark:hover:bg-green-900"
                     : "bg-red-50 hover:bg-red-100 border-2 border-red-500 dark:bg-red-950 dark:hover:bg-red-900"
@@ -124,9 +124,9 @@ export function TemplateAttendanceView({
                 aria-label={isPresent ? "Mark as absent" : "Mark as present"}
               >
                 {isPresent ? (
-                  <Check className="h-7 w-7 text-green-600 dark:text-green-400" strokeWidth={3} />
+                  <Check className="h-8 w-8 text-green-600 dark:text-green-400" strokeWidth={3} />
                 ) : (
-                  <X className="h-7 w-7 text-red-600 dark:text-red-400" strokeWidth={3} />
+                  <X className="h-8 w-8 text-red-600 dark:text-red-400" strokeWidth={3} />
                 )}
               </button>
             </div>
@@ -147,11 +147,9 @@ export function TemplateAttendanceView({
             className={cellClasses}
             style={cellStyle}
           >
-            <div className="text-sm">
-              {cell.label === "Roll Number" ? student.roll_number : 
-               cell.label === "Student Name" ? student.name : 
-               cell.label || ""}
-            </div>
+            {cell.label === "Roll Number" ? student.roll_number : 
+             cell.label === "Student Name" ? student.name : 
+             cell.label || ""}
           </td>
         );
       }
@@ -211,7 +209,7 @@ export function TemplateAttendanceView({
   };
 
   const renderGrid = () => {
-    const grid: JSX.Element[][] = [];
+    const rows: JSX.Element[] = [];
     
     // Render header rows
     for (let row = 0; row < headerRows; row++) {
@@ -226,14 +224,14 @@ export function TemplateAttendanceView({
           rowCells.push(
             <td
               key={`${row}-${col}`}
-              className="border border-border p-3 min-h-[60px] bg-muted"
+              className="p-4 bg-muted/50 font-semibold border-t"
             />
           );
         }
       }
       
       if (rowCells.length > 0) {
-        grid.push([<tr key={row}>{rowCells}</tr>]);
+        rows.push(<tr key={row}>{rowCells}</tr>);
       }
     }
     
@@ -259,9 +257,9 @@ export function TemplateAttendanceView({
             rowCells.push(
               <td
                 key={`${row}-${col}`}
-                className="border border-border p-3 min-h-[60px]"
+                className="p-4 border-t"
               >
-                <div className="text-sm text-muted-foreground">-</div>
+                -
               </td>
             );
           }
@@ -269,16 +267,23 @@ export function TemplateAttendanceView({
       }
       
       if (rowCells.length > 0) {
-        grid.push([<tr key={row}>{rowCells}</tr>]);
+        rows.push(
+          <tr 
+            key={row}
+            className="hover:bg-muted/20 transition-colors"
+          >
+            {rowCells}
+          </tr>
+        );
       }
     });
     
-    return grid.flat();
+    return rows;
   };
 
   return (
-    <div className="overflow-auto">
-      <table className="w-full border-collapse">
+    <div className="overflow-x-auto">
+      <table className="w-full">
         <tbody>{renderGrid()}</tbody>
       </table>
     </div>
