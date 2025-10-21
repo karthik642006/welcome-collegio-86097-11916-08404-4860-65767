@@ -26,7 +26,8 @@ const AttendanceSheet = () => {
   const navigate = useNavigate();
   const [section, setSection] = useState<any>(null);
   const [students, setStudents] = useState<Student[]>([]);
-  const [attendance, setAttendance] = useState<Map<string, AttendanceRecord>>(new Map());
+  // switched to plain object keyed by student id for simpler/reactive updates
+  const [attendance, setAttendance] = useState<Record<string, AttendanceRecord>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAbsentOnly, setShowAbsentOnly] = useState(false);
@@ -46,6 +47,7 @@ const AttendanceSheet = () => {
       return;
     }
     fetchSectionData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId]);
 
   const fetchSectionData = async () => {
@@ -68,7 +70,7 @@ const AttendanceSheet = () => {
       // Fetch templates for this section, year, or department
       const yearId = sectionData?.year?.id;
       const deptId = sectionData?.year?.department?.id;
-      
+
       const { data: templatesData } = await supabase
         .from("attendance_sheet_templates")
         .select("*, template_cells(*)")
@@ -89,57 +91,56 @@ const AttendanceSheet = () => {
       if (studentsError) throw studentsError;
       setStudents(studentsData || []);
 
-  // Initialize attendance as all present
-  const initialAttendance = new Map<string, AttendanceRecord>();
-  studentsData?.forEach((student) => {
-    initialAttendance.set(student.id, {
-      student_id: student.id,
-      status: "present",
-    });
-  });
-  setAttendance(initialAttendance);
-
-  // Try to fetch today's attendance if exists and merge over defaults
-  const today = new Date().toISOString().split("T")[0];
-  const { data: existingAttendance } = await supabase
-    .from("attendance")
-    .select("*")
-    .eq("section_id", sectionId)
-    .eq("date", today);
-
-  if (existingAttendance && existingAttendance.length > 0) {
-    const mergedMap = new Map(initialAttendance);
-    existingAttendance.forEach((record) => {
-      mergedMap.set(record.student_id, {
-        id: record.id,
-        student_id: record.student_id,
-        status: (record.status as "present" | "absent") ?? "present",
+      // Initialize attendance as all present (object keyed by student id)
+      const initialAttendance: Record<string, AttendanceRecord> = {};
+      studentsData?.forEach((student: Student) => {
+        initialAttendance[student.id] = {
+          student_id: student.id,
+          status: "present",
+        };
       });
-    });
-    setAttendance(mergedMap);
-  }
+      setAttendance(initialAttendance);
+
+      // Try to fetch today's attendance if exists and merge over defaults
+      const today = new Date().toISOString().split("T")[0];
+      const { data: existingAttendance } = await supabase
+        .from("attendance")
+        .select("*")
+        .eq("section_id", sectionId)
+        .eq("date", today);
+
+      if (existingAttendance && existingAttendance.length > 0) {
+        const merged = { ...initialAttendance };
+        existingAttendance.forEach((record: any) => {
+          merged[record.student_id] = {
+            id: record.id,
+            student_id: record.student_id,
+            status: (record.status as "present" | "absent") ?? "present",
+          };
+        });
+        setAttendance(merged);
+      }
     } catch (error: any) {
+      console.error(error);
       toast.error("Failed to load section data");
     } finally {
       setLoading(false);
     }
   };
 
+  // Toggle only the clicked student's status (immutable update)
   const toggleAttendance = (studentId: string) => {
-    setAttendance((prev) => {
-      const newAttendance = new Map(prev);
-      const currentRecord = newAttendance.get(studentId);
-
-      const nextStatus = currentRecord?.status === "present" ? "absent" : "present";
-
-      const newRecord: AttendanceRecord = {
-        id: currentRecord?.id,
-        student_id: studentId,
-        status: nextStatus,
+    setAttendance(prev => {
+      const current = prev[studentId];
+      const nextStatus: "present" | "absent" = current?.status === "present" ? "absent" : "present";
+      return {
+        ...prev,
+        [studentId]: {
+          ...current,
+          student_id: studentId,
+          status: nextStatus,
+        },
       };
-
-      newAttendance.set(studentId, newRecord);
-      return newAttendance;
     });
   };
 
@@ -149,7 +150,7 @@ const AttendanceSheet = () => {
       const today = new Date().toISOString().split("T")[0];
       const { data: { user } } = await supabase.auth.getUser();
 
-      const attendanceRecords = Array.from(attendance.values()).map((record) => ({
+      const attendanceRecords = Object.values(attendance).map((record) => ({
         student_id: record.student_id,
         section_id: sectionId,
         date: today,
@@ -173,6 +174,7 @@ const AttendanceSheet = () => {
 
       toast.success("Attendance saved successfully!");
     } catch (error: any) {
+      console.error(error);
       toast.error("Failed to save attendance");
     } finally {
       setSaving(false);
@@ -181,13 +183,13 @@ const AttendanceSheet = () => {
 
   const getStats = () => {
     const total = students.length;
-    const present = Array.from(attendance.values()).filter((a) => a.status === "present").length;
+    const present = Object.values(attendance).filter((a) => a.status === "present").length;
     const absent = total - present;
     return { total, present, absent };
   };
 
   const filteredStudents = showAbsentOnly
-    ? students.filter((s) => attendance.get(s.id)?.status === "absent")
+    ? students.filter((s) => attendance[s.id]?.status === "absent")
     : students;
 
   const stats = getStats();
@@ -200,7 +202,7 @@ const AttendanceSheet = () => {
         index + 1,
         student.roll_number,
         student.name,
-        attendance.get(student.id)?.status === "present" ? "Present" : "Absent"
+        attendance[student.id]?.status === "present" ? "Present" : "Absent"
       ])
     ]
       .map(row => row.join(","))
@@ -334,7 +336,7 @@ const AttendanceSheet = () => {
                       </tr>
                     ) : (
                       filteredStudents.map((student, index) => {
-                        const status = attendance.get(student.id)?.status;
+                        const status = attendance[student.id]?.status;
                         const isPresent = status === "present";
 
                         return (
@@ -378,6 +380,7 @@ const AttendanceSheet = () => {
                 <TemplateAttendanceView
                   template={selectedTemplate}
                   students={students}
+                  // pass attendance as object; TemplateAttendanceView will need to accept this shape
                   attendance={attendance}
                   onToggle={toggleAttendance}
                 />

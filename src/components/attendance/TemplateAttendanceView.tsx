@@ -34,7 +34,7 @@ type Template = {
 interface TemplateAttendanceViewProps {
   template: Template;
   students: Student[];
-  attendance: Map<string, AttendanceRecord>;
+  attendance: Record<string, AttendanceRecord>;
   onToggle: (studentId: string) => void;
 }
 
@@ -100,7 +100,7 @@ export function TemplateAttendanceView({
       const student = students[studentIndex];
       
       if (student) {
-        const status = attendance.get(student.id)?.status;
+        const status = attendance[student.id]?.status;
         const isPresent = status === "present";
 
         return (
