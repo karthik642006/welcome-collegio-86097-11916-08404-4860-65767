@@ -210,74 +210,58 @@ export function TemplateAttendanceView({
 
   const renderGrid = () => {
     const rows: JSX.Element[] = [];
-    
+
     // Render header rows
     for (let row = 0; row < headerRows; row++) {
       const rowCells: JSX.Element[] = [];
-      
       for (let col = 0; col < maxCol; col++) {
         const cell = getCellAt(row, col);
-        
         if (cell && cell.row_index === row && cell.col_index === col) {
           rowCells.push(renderCell(cell, row, col));
         } else if (!isCellOccupied(row, col)) {
-          rowCells.push(
-            <td
-              key={`${row}-${col}`}
-              className="p-4 bg-muted/50 font-semibold border-t"
-            />
-          );
+          // This ensures we don't leave empty holes in the grid
+          rowCells.push(<td key={`${row}-${col}`} className="p-4 border-t" />);
         }
       }
-      
       if (rowCells.length > 0) {
-        rows.push(<tr key={row}>{rowCells}</tr>);
+        rows.push(<tr key={`header-${row}`}>{rowCells}</tr>);
       }
     }
-    
-    // Render data rows for each student
-    students.forEach((student, studentIndex) => {
-      const row = headerRows + studentIndex;
-      const rowCells: JSX.Element[] = [];
-      
-      for (let col = 0; col < maxCol; col++) {
-        // Find template cell at this column (use first data row as template)
-        const templateCell = cells.find(c => 
-          c.col_index === col && 
-          c.row_index === headerRows &&
-          (c.cell_type === "checkbox" || c.cell_type === "text" || c.cell_type === "textarea")
-        );
-        
-        if (templateCell) {
-          rowCells.push(renderCell(templateCell, row, col, studentIndex));
-        } else {
-          // Check if this column has any template guidance
-          const anyColumnCell = cells.find(c => c.col_index === col);
-          if (anyColumnCell) {
-            rowCells.push(
-              <td
-                key={`${row}-${col}`}
-                className="p-4 border-t"
-              >
-                -
-              </td>
-            );
+
+    // Identify the structure of data rows from the template
+    const dataCells = cells.filter(c => c.row_index >= headerRows);
+    const dataRowIndices = [...new Set(dataCells.map(c => c.row_index))].sort((a, b) => a - b);
+    const numDataRowsInTemplate = dataRowIndices.length;
+
+    if (numDataRowsInTemplate === 0) return rows; // No data rows to render
+
+    // Render data rows for each student, replicating the template's data section
+    students.forEach((_, studentIndex) => {
+      dataRowIndices.forEach((templateRowIndex, i) => {
+        const currentRow = headerRows + studentIndex * numDataRowsInTemplate + i;
+        const rowCells: JSX.Element[] = [];
+
+        for (let col = 0; col < maxCol; col++) {
+          // Find the corresponding cell in the template's data section
+          const templateCell = getCellAt(templateRowIndex, col);
+
+          if (templateCell && templateCell.row_index === templateRowIndex && templateCell.col_index === col) {
+            rowCells.push(renderCell(templateCell, currentRow, col, studentIndex));
+          } else if (!isCellOccupied(templateRowIndex, col)) {
+            rowCells.push(<td key={`${currentRow}-${col}`} className="p-4 border-t" />);
           }
         }
-      }
-      
-      if (rowCells.length > 0) {
-        rows.push(
-          <tr 
-            key={row}
-            className="hover:bg-muted/20 transition-colors"
-          >
-            {rowCells}
-          </tr>
-        );
-      }
+
+        if (rowCells.length > 0) {
+          rows.push(
+            <tr key={`student-${studentIndex}-row-${i}`} className="hover:bg-muted/20 transition-colors">
+              {rowCells}
+            </tr>
+          );
+        }
+      });
     });
-    
+
     return rows;
   };
 
