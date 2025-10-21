@@ -336,64 +336,75 @@ const AttendanceSheet = () => {
         <Card>
           <CardContent className="p-0">
             {viewMode === "list" ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left p-4 font-semibold">S.No</th>
-                      <th className="text-left p-4 font-semibold">Roll Number</th>
-                      <th className="text-left p-4 font-semibold">Student Name</th>
-                      <th className="text-center p-4 font-semibold">Attendance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredStudents.length === 0 ? (
+              selectedTemplate ? (
+                <div className="overflow-x-auto p-4">
+                  <TemplateAttendanceView
+                    template={selectedTemplate}
+                    students={filteredStudents}
+                    attendance={attendance}
+                    onToggle={toggleAttendance}
+                  />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
                       <tr>
-                        <td colSpan={4} className="text-center p-8 text-muted-foreground">
-                          {showAbsentOnly ? "No absent students" : "No students found"}
-                        </td>
+                        <th className="text-left p-4 font-semibold">S.No</th>
+                        <th className="text-left p-4 font-semibold">Roll Number</th>
+                        <th className="text-left p-4 font-semibold">Student Name</th>
+                        <th className="text-center p-4 font-semibold">Attendance</th>
                       </tr>
-                    ) : (
-                      filteredStudents.map((student, index) => {
-                        const status = attendance.get(student.id)?.status;
-                        const isPresent = status === "present";
+                    </thead>
+                    <tbody>
+                      {filteredStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="text-center p-8 text-muted-foreground">
+                            {showAbsentOnly ? "No absent students" : "No students found"}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredStudents.map((student, index) => {
+                          const status = attendance.get(student.id)?.status;
+                          const isPresent = status === "present";
 
-                        return (
-                          <tr
-                            key={student.id}
-                            className="border-t hover:bg-muted/20 transition-colors"
-                          >
-                            <td className="p-4">{index + 1}</td>
-                            <td className="p-4 font-medium">{student.roll_number}</td>
-                            <td className="p-4">{student.name}</td>
-                            <td className="p-4">
-                              <div className="flex items-center justify-center">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleAttendance(student.id)}
-                                  className={cn(
-                                    "min-h-[60px] min-w-[80px] rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm",
-                                    isPresent
-                                      ? "bg-green-50 hover:bg-green-100 border-2 border-green-500 dark:bg-green-950 dark:hover:bg-green-900"
-                                      : "bg-red-50 hover:bg-red-100 border-2 border-red-500 dark:bg-red-950 dark:hover:bg-red-900"
-                                  )}
-                                  aria-label={isPresent ? "Mark as absent" : "Mark as present"}
-                                >
-                                  {isPresent ? (
-                                    <Check className="h-8 w-8 text-green-600 dark:text-green-400" strokeWidth={3} />
-                                  ) : (
-                                    <X className="h-8 w-8 text-red-600 dark:text-red-400" strokeWidth={3} />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                          return (
+                            <tr
+                              key={student.id}
+                              className="border-t hover:bg-muted/20 transition-colors"
+                            >
+                              <td className="p-4">{index + 1}</td>
+                              <td className="p-4 font-medium">{student.roll_number}</td>
+                              <td className="p-4">{student.name}</td>
+                              <td className="p-4">
+                                <div className="flex items-center justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleAttendance(student.id)}
+                                    className={cn(
+                                      "min-h-[60px] min-w-[80px] rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm",
+                                      isPresent
+                                        ? "bg-green-50 hover:bg-green-100 border-2 border-green-500 dark:bg-green-950 dark:hover:bg-green-900"
+                                        : "bg-red-50 hover:bg-red-100 border-2 border-red-500 dark:bg-red-950 dark:hover:bg-red-900"
+                                    )}
+                                    aria-label={isPresent ? "Mark as absent" : "Mark as present"}
+                                  >
+                                    {isPresent ? (
+                                      <Check className="h-8 w-8 text-green-600 dark:text-green-400" strokeWidth={3} />
+                                    ) : (
+                                      <X className="h-8 w-8 text-red-600 dark:text-red-400" strokeWidth={3} />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )
             ) : selectedTemplate ? (
               <div className="overflow-x-auto p-4">
                 <TemplateAttendanceView
