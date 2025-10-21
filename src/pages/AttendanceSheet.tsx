@@ -1,39 +1,3 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Check, X, Users, UserCheck, UserX, FileSpreadsheet, Download } from "lucide-react";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { TemplateAttendanceView } from "@/components/attendance/TemplateAttendanceView";
-
-type Student = {
-  id: string;
-  roll_number: string;
-  name: string;
-  email: string | null;
-};
-
-type AttendanceRecord = {
-  id?: string;
-  student_id: string;
-  status: "present" | "absent";
-};
-
-const AttendanceSheet = () => {
-  const { sectionId } = useParams();
-  const navigate = useNavigate();
-  const [section, setSection] = useState<any>(null);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [attendance, setAttendance] = useState<Map<string, AttendanceRecord>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [showAbsentOnly, setShowAbsentOnly] = useState(false);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<"list" | "template">("list");
-
   const isValidUuid = (v: string) =>
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
