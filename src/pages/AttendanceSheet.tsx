@@ -127,18 +127,19 @@ const AttendanceSheet = () => {
 
   const toggleAttendance = (studentId: string) => {
     setAttendance((prev) => {
-      const newMap = new Map(prev);
-      const current = newMap.get(studentId);
-      const nextStatus = !current
-        ? "present"
-        : current.status === "present"
-          ? "absent"
-          : "present";
-      newMap.set(studentId, {
-        ...(current ?? { student_id: studentId }),
+      const newAttendance = new Map(prev);
+      const currentRecord = newAttendance.get(studentId);
+
+      const nextStatus = currentRecord?.status === "present" ? "absent" : "present";
+
+      const newRecord: AttendanceRecord = {
+        id: currentRecord?.id,
+        student_id: studentId,
         status: nextStatus,
-      });
-      return newMap;
+      };
+
+      newAttendance.set(studentId, newRecord);
+      return newAttendance;
     });
   };
 
