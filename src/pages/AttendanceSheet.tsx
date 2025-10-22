@@ -128,19 +128,26 @@ const AttendanceSheet = () => {
     }
   };
 
-  // Toggle only the clicked student's status (immutable update)
   const toggleAttendance = (studentId: string) => {
     setAttendance(prev => {
-      const current = prev[studentId];
-      const nextStatus: "present" | "absent" = current?.status === "present" ? "absent" : "present";
-      return {
-        ...prev,
-        [studentId]: {
-          ...current,
-          student_id: studentId,
-          status: nextStatus,
-        },
+      // 1. Create a new object to avoid mutating the original state
+      const newAttendanceState = { ...prev };
+
+      // 2. Get the specific student's current record
+      const currentStudentRecord = prev[studentId];
+
+      // 3. Determine the new status
+      const nextStatus = currentStudentRecord?.status === "present" ? "absent" : "present";
+
+      // 4. Create a new record object for the student being updated
+      newAttendanceState[studentId] = {
+        ...currentStudentRecord,
+        student_id: studentId, // Ensure student_id is present
+        status: nextStatus,
       };
+
+      // 5. Return the new state object
+      return newAttendanceState;
     });
   };
 
