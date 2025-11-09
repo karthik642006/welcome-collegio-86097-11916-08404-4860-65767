@@ -105,7 +105,7 @@ export function TemplateAttendanceView({
 
         return (
           <td
-            key={`${row}-${col}`}
+            key={`${row}-${col}-${student.id}`}
             rowSpan={cell.rowspan}
             colSpan={cell.colspan}
             className="p-4 border-t"
@@ -114,7 +114,11 @@ export function TemplateAttendanceView({
             <div className="flex items-center justify-center">
               <button
                 type="button"
-                onClick={() => onToggle(student.id)}
+                data-student-id={student.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle(student.id);
+                }}
                 className={cn(
                   "min-h-[60px] min-w-[80px] rounded-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-sm",
                   isPresent
@@ -141,7 +145,7 @@ export function TemplateAttendanceView({
       if (student) {
         return (
           <td
-            key={`${row}-${col}`}
+            key={`${row}-${col}-${student.id}`}
             rowSpan={cell.rowspan}
             colSpan={cell.colspan}
             className={cellClasses}
