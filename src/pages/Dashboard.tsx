@@ -31,20 +31,53 @@ const Dashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    checkUser();
-    fetchDepartments();
+    initializeDashboard();
   }, []);
 
+  const initializeDashboard = async () => {
+    try {
+      await Promise.all([checkUser(), fetchDepartments()]);
+    } catch (error) {
+      console.error("Dashboard initialization error:", error);
+      toast.error("Failed to load dashboard. Please refresh the page.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate("/auth");
-    } else {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        console.error("Auth error:", authError);
+        navigate("/auth");
+        return;
+      }
+
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+      
       setUser(user);
       
       // Check if user is admin
-      const { data: isAdminResp } = await supabase.rpc('is_admin', { user_id: user.id });
-      setIsAdmin(!!isAdminResp);
+      try {
+        const { data: isAdminResp, error: rpcError } = await supabase.rpc('is_admin', { user_id: user.id });
+        if (rpcError) {
+          console.error("Admin check error:", rpcError);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!isAdminResp);
+        }
+      } catch (rpcError) {
+        console.error("Admin RPC call failed:", rpcError);
+        setIsAdmin(false);
+      }
+    } catch (error) {
+      console.error("Check user error:", error);
+      navigate("/auth");
     }
   };
 
@@ -55,12 +88,15 @@ const Dashboard = () => {
         .select("*")
         .order("name");
 
-      if (error) throw error;
+      if (error) {
+        console.error("Departments fetch error:", error);
+        throw error;
+      }
+      
       setDepartments(data || []);
     } catch (error: any) {
-      toast.error("Failed to load departments");
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch departments:", error);
+      toast.error("Failed to load departments. Please check your connection.");
     }
   };
 
