@@ -34,10 +34,21 @@ type Section = {
   };
 };
 
+type TemplateCell = {
+  id: string;
+  row_index: number;
+  col_index: number;
+  rowspan: number;
+  colspan: number;
+  cell_type: string;
+  label: string;
+  config?: any;
+};
+
 type Template = {
   id: string;
   name: string;
-  template_cells: any[];
+  template_cells: TemplateCell[];
 };
 
 const AttendanceSheet = () => {
